@@ -148,7 +148,7 @@ fn validate_destination(path: &Path) -> Result<(), AppError> {
         return Err(AppError::InvalidDestination);
     };
     if !parent.as_os_str().is_empty() && !parent.exists() {
-        return Err(AppError::MissingDestination(parent.to_path_buf()));
+        return Err(AppError::MissingDestination);
     }
     Ok(())
 }
@@ -419,5 +419,16 @@ mod tests {
         let path = dir.path().join("report.json");
         fs::write(&path, vec![b' '; MAX_REPORT_IMPORT_BYTES as usize + 1]).unwrap();
         assert!(matches!(read_report(&path), Err(AppError::ReportTooLarge)));
+    }
+
+    #[test]
+    fn missing_destination_error_does_not_disclose_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing");
+        let path = missing.join("report.json");
+        let report = analyze_text("hello", AnalysisOptions::default());
+        let error = write_report(&path, &report, "json").unwrap_err();
+        assert!(matches!(error, AppError::MissingDestination));
+        assert!(!error.to_string().contains(missing.to_string_lossy().as_ref()));
     }
 }
