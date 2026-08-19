@@ -10,6 +10,7 @@ npm run tauri:dev
 ## Frontend checks
 
 ```bash
+npm run version:check
 npm run check
 npm run lint
 npm run format:check
@@ -38,18 +39,20 @@ cargo test --all-targets
 - Treat imported reports, settings backups, and WebView storage as untrusted input.
 - Bound local collections and imported file sizes.
 - Keep activity/history metadata opt-in and provide deletion controls.
+- Keep application version and report-schema version independent.
 - Every reproducible bug fix should add a regression test.
 
 ## Adding a metric
 
 1. Extend the domain model.
-2. Decide whether the report schema version must change.
+2. Decide whether the report schema must change; ordinary app-version changes do not justify a schema bump.
 3. Implement the calculation in the analyzer.
 4. Add Unicode/empty/edge tests.
 5. Render it in the UI.
 6. Add it to exports and report comparison where meaningful.
 7. Add legacy-schema behavior if older reports are still supported.
-8. Update docs/changelog.
+8. Update `docs/report-schema.md` if the canonical JSON contract changes.
+9. Update docs/changelog.
 
 ## Adding a setting
 
@@ -63,19 +66,26 @@ cargo test --all-targets
 
 ## Adding local persistence
 
-Before introducing another local-storage key, read ADR-0008 and justify why persistence is needed. Persist the minimum data, set explicit bounds, reject path-like/sensitive values where applicable, and provide clear/delete behavior. Do not persist source text as a convenience feature.
+Before introducing another local-storage key, read ADR-0008 and ADR-0011 and justify why persistence is needed. Persist the minimum data, set explicit bounds, reject path-like/sensitive values where applicable, and provide clear/delete behavior. Do not persist source text as a convenience feature. Optional persistence must not become a requirement for core analysis availability.
 
 ## Report schema changes
 
-The current analysis report schema is v2. `CURRENT_REPORT_VERSION` in Rust is the source of truth for newly generated reports. Import compatibility lives in `report.rs`, and frontend comparison must not invent values for fields that did not exist in an older schema.
+The current stable analysis report schema is **v2**, including in application version **2.0.12**. `CURRENT_REPORT_VERSION` in Rust is the source of truth for newly generated reports. Import compatibility lives in `report.rs`, frontend comparison must not invent values for fields that did not exist in an older schema, and the stable compatibility policy is documented in `docs/report-schema.md`.
+
+`src-tauri/tests/report_schema_contract.rs` intentionally fails if `CURRENT_REPORT_VERSION` changes accidentally.
 
 When changing schema semantics:
 
-1. update the version deliberately;
-2. keep or reject older versions explicitly;
-3. reject unknown future versions;
-4. add current/legacy/future-version tests;
-5. update ADR-0005 and user-facing compatibility docs.
+1. establish why the existing v2 contract cannot represent the change compatibly;
+2. update the schema version deliberately;
+3. keep or reject older versions explicitly;
+4. reject unknown future versions;
+5. add current/legacy/future-version and migration tests;
+6. update ADR-0005 if the architectural compatibility decision changes;
+7. update `docs/report-schema.md`, `CHANGELOG.md`, release notes, and comparison behavior;
+8. verify canonical JSON still excludes raw source text and full source paths.
+
+Do not modify or remove the schema-freeze regression test merely to make an unrelated change pass.
 
 ## Quick actions
 

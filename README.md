@@ -10,6 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-sanskarIN-FFDD00?logo=buy-me-a-coffee&logoColor=000000)](https://buymeacoffee.com/sanskarIN)
 
+**Current source version: 2.0.12**
+
 **Made by the Sanskar**
 
 </div>
@@ -37,6 +39,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Canonical JSON report export plus customizable Markdown export; source document text is deliberately excluded from every report.
 - Markdown section picker for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
 - Versioned JSON report schema with bounded, validated local report import and compatibility for legacy schema-v1 exports.
+- Frozen schema-v2 compatibility contract for the 2.x application line, documented separately from the app version.
 - Compare the current analysis with a previously exported TextLens JSON report without loading source document content.
 - Versioned settings backup/restore with strict validation and a size limit.
 - Optional recent-file metadata history, disabled by default, storing only display filename, size, and opened time—never full paths or source text.
@@ -128,6 +131,7 @@ Full guides:
 - [Development](docs/development.md)
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
+- [Report schema compatibility](docs/report-schema.md)
 - [Release](docs/release.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Accessibility](docs/accessibility.md)
@@ -139,7 +143,7 @@ Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release m
 
 ```bash
 npm run version:check
-npm run release:tag-check -- v0.1.0
+npm run release:tag-check -- v2.0.12
 npm run tauri:build
 ```
 
@@ -173,7 +177,9 @@ The frontend keeps comparison, Markdown export-option handling, Quick actions, r
 
 ## Report compatibility
 
-New analyses use report schema **v2**, which explicitly includes vocabulary metrics. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
+Application version **2.0.12** continues to emit report schema **v2**. App versioning and report-schema versioning are deliberately independent. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
+
+Existing valid schema-v2 reports are the stable compatibility target for the TextLens 2.x line. The full compatibility rules and change requirements are documented in [docs/report-schema.md](docs/report-schema.md).
 
 Imported reports are size-limited and validated before they reach the UI. Comparison uses only exported aggregate report data and never reconstructs or stores the original source text. JSON customization is intentionally not supported so exported JSON continues to satisfy the full report schema.
 
@@ -203,7 +209,7 @@ See [docs/testing.md](docs/testing.md) for manual acceptance, report customizati
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Report-schema changes must preserve or deliberately document compatibility behavior.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Report-schema changes must preserve or deliberately document compatibility behavior and update [docs/report-schema.md](docs/report-schema.md).
 
 ## Roadmap
 
