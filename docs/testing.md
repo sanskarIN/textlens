@@ -17,6 +17,7 @@ Current frontend helper coverage includes:
 - HTML-safe presentation helpers;
 - report metric and top-keyword comparison deltas;
 - legacy-report comparison behavior for vocabulary metrics unavailable in schema v1;
+- Markdown export-option defaults, explicit section choices, and malformed-field fallback behavior;
 - Quick actions query filtering and multi-term matching;
 - recent-file metadata parsing, path rejection, numeric/timestamp validation, deduplication, and ten-entry bounds.
 
@@ -27,7 +28,9 @@ cd src-tauri
 cargo test --lib
 ```
 
-Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
+Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, configurable Markdown section rendering, canonical JSON export behavior, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
+
+Report-export tests verify that Markdown customization can omit source metadata/sections without exposing source text, while JSON remains a complete round-trippable report even when Markdown options are supplied.
 
 Report-import tests cover current-schema round trips, schema-v1 compatibility, unsupported future versions, inconsistent metrics, and oversized inputs.
 
@@ -87,23 +90,27 @@ Before a release candidate:
 11. Open UTF-8/BOM and UTF-16LE/BE BOM fixtures.
 12. Test malformed UTF-8 and undefined Windows-1252 bytes and confirm the encoding warning appears.
 13. Force streaming with `TEXTLENS_LARGE_FILE_THRESHOLD_MIB=1` and a synthetic >1 MiB file.
-14. Export JSON/Markdown and verify source document content is absent.
-15. Confirm a newly exported JSON report uses schema v2.
-16. Compare the current analysis with a valid exported schema-v2 JSON report and verify metric/keyword deltas.
-17. Compare against a compatible schema-v1 report and confirm unavailable vocabulary deltas are omitted.
-18. Attempt report comparison with malformed JSON, version 0, a future version, inconsistent metrics, invalid frequency data, and a file larger than 512 KiB; each must be rejected.
-19. Attempt to restore malformed, unknown-field, unsupported-version, out-of-range, invalid-exclusion, and oversized settings files; each must be rejected.
-20. Open Quick actions with both the navigation button and `Ctrl/Cmd + Shift + P`; verify search is case-insensitive and multi-term filtering works.
-21. Verify report-dependent Quick actions remain visible but disabled before any analysis and become enabled after analysis.
-22. Execute focus, open, clear, export, compare, Settings, and About through Quick actions and verify they reuse the same behavior as visible controls.
-23. Confirm Recent files is hidden with default settings and no metadata storage key is retained.
-24. Enable recent-file metadata, open more than 10 fictional files, and confirm only the newest 10 display-name/size/time entries remain.
-25. Confirm recent metadata never includes a directory or full path; remove one entry and then clear all history.
-26. Disable recent-file metadata and confirm stored history is deleted immediately. Restore defaults and verify the same deletion behavior.
-27. Back up settings with recent metadata enabled and verify the backup stores only the boolean preference, not recent-file entries.
-28. Test light/dark/system themes.
-29. Navigate all controls keyboard-only, including dialogs, Quick actions, analysis preset controls, and recent-history controls.
-30. Enable reduced motion.
-31. Test narrow window widths and horizontal comparison-table scrolling.
+14. Export JSON and verify it remains a complete schema-v2 report with source document content absent.
+15. Open Markdown export from the visible button, Quick actions, and `Ctrl/Cmd + E`; verify all three open the same section picker.
+16. Export Markdown with every section selected and verify the previous full aggregate report content is present while source text is absent.
+17. Disable source metadata and selected aggregate sections, export Markdown, and verify those sections/filename metadata are absent while the schema marker and TextLens attribution remain.
+18. Disable every optional Markdown section and verify export still succeeds without including source text.
+19. Confirm a newly exported JSON report uses schema v2.
+20. Compare the current analysis with a valid exported schema-v2 JSON report and verify metric/keyword deltas.
+21. Compare against a compatible schema-v1 report and confirm unavailable vocabulary deltas are omitted.
+22. Attempt report comparison with malformed JSON, version 0, a future version, inconsistent metrics, invalid frequency data, and a file larger than 512 KiB; each must be rejected.
+23. Attempt to restore malformed, unknown-field, unsupported-version, out-of-range, invalid-exclusion, and oversized settings files; each must be rejected.
+24. Open Quick actions with both the navigation button and `Ctrl/Cmd + Shift + P`; verify search is case-insensitive and multi-term filtering works.
+25. Verify report-dependent Quick actions remain visible but disabled before any analysis and become enabled after analysis.
+26. Execute focus, open, clear, export, compare, Settings, and About through Quick actions and verify they reuse the same behavior as visible controls.
+27. Confirm Recent files is hidden with default settings and no metadata storage key is retained.
+28. Enable recent-file metadata, open more than 10 fictional files, and confirm only the newest 10 display-name/size/time entries remain.
+29. Confirm recent metadata never includes a directory or full path; remove one entry and then clear all history.
+30. Disable recent-file metadata and confirm stored history is deleted immediately. Restore defaults and verify the same deletion behavior.
+31. Back up settings with recent metadata enabled and verify the backup stores only the boolean preference, not recent-file entries.
+32. Test light/dark/system themes.
+33. Navigate all controls keyboard-only, including dialogs, the Markdown section picker, Quick actions, analysis preset controls, and recent-history controls.
+34. Enable reduced motion.
+35. Test narrow window widths and horizontal comparison-table scrolling.
 
 Never commit real private documents as fixtures.

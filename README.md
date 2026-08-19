@@ -34,7 +34,8 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Local file analysis with UTF-8, UTF-16 BOM handling, and a clearly labelled Windows-1252 safe fallback.
 - Invalid UTF-8 and undefined Windows-1252 bytes are surfaced through an encoding warning rather than silently hidden.
 - Streaming analysis for large UTF-8/Windows-1252 files to avoid loading the entire document at once.
-- JSON and Markdown report export; source document text is deliberately excluded from reports.
+- Canonical JSON report export plus customizable Markdown export; source document text is deliberately excluded from every report.
+- Markdown section picker for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
 - Versioned JSON report schema with bounded, validated local report import and compatibility for legacy schema-v1 exports.
 - Compare the current analysis with a previously exported TextLens JSON report without loading source document content.
 - Versioned settings backup/restore with strict validation and a size limit.
@@ -51,7 +52,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 |---|---|
 | `Ctrl/Cmd + Shift + P` | Open Quick actions |
 | `Ctrl/Cmd + O` | Open a local text file |
-| `Ctrl/Cmd + E` | Export the current report as Markdown |
+| `Ctrl/Cmd + E` | Open Markdown report section picker |
 | `Ctrl/Cmd + K` | Focus the text editor |
 
 ## Privacy-first local preferences
@@ -59,6 +60,12 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 Recent-file history is an explicit opt-in. It is intentionally informational rather than a reopen list, because reopening would require retaining a filesystem path. TextLens stores at most 10 metadata entries, collapses duplicate display names to the newest entry, and clears the history when the preference is disabled or defaults are restored.
 
 Analysis presets are also local-only. A preset stores only its display name plus analysis configuration: reading/speaking rates, result limits, and keyword exclusions. It never stores document contents, source paths, recent-file entries, reports, theme, reduced-motion choice, or the recent-file-history opt-in. Up to 12 presets are retained and each name is bounded to 48 Unicode scalar values.
+
+## Privacy-safe report customization
+
+JSON exports stay complete and canonical because they are the validated import/comparison format. Markdown exports can omit any optional aggregate section. Disabling **Source metadata** removes the display filename, analysis mode, and encoding from the Markdown report. The original document text is never an available export section.
+
+The Markdown picker is used by the visible export button, Quick actions, and `Ctrl/Cmd + E`, so all Markdown entry points share the same behavior.
 
 ## Supported platforms
 
@@ -72,7 +79,7 @@ Analysis presets are also local-only. A preset stores only its display name plus
 
 - **Rust** — analysis engine, file decoding/streaming, report validation/import/export, settings backup validation.
 - **Tauri 2** — native desktop shell and secure IPC.
-- **TypeScript** — strongly typed UI behavior, report comparison, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
+- **TypeScript** — strongly typed UI behavior, report comparison/customization, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
 - **GitHub Actions** — CI, security checks, and release automation.
@@ -134,21 +141,21 @@ commands.rs
       │
       ├── domain/analyzer.rs  ← pure counting/frequency logic
       ├── fileio.rs           ← encoding + streaming adapter
-      ├── report.rs           ← validated report import + privacy-safe export
+      ├── report.rs           ← validated import + privacy-safe/custom Markdown export
       └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
-The frontend keeps comparison, Quick actions, recent-metadata handling, local analysis presets, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+The frontend keeps comparison, Markdown export-option handling, Quick actions, recent-metadata handling, local analysis presets, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
 
 ## Report compatibility
 
 New analyses use report schema **v2**, which explicitly includes vocabulary metrics. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
 
-Imported reports are size-limited and validated before they reach the UI. Comparison uses only exported aggregate report data and never reconstructs or stores the original source text.
+Imported reports are size-limited and validated before they reach the UI. Comparison uses only exported aggregate report data and never reconstructs or stores the original source text. JSON customization is intentionally not supported so exported JSON continues to satisfy the full report schema.
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, Markdown can additionally omit display-name/analysis/encoding metadata, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
@@ -166,7 +173,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 ```
 
-See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, local analysis presets, recent metadata, Quick actions, and large-file checks.
+See [docs/testing.md](docs/testing.md) for manual acceptance, report customization/import compatibility, Unicode, settings, local analysis presets, recent metadata, Quick actions, and large-file checks.
 
 ## Contributing
 

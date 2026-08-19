@@ -1,5 +1,7 @@
 use std::{fs, path::Path};
 
+use serde::Deserialize;
+
 use crate::{
     domain::models::{
         AnalysisReport, FrequencyItem, SourceKind, CURRENT_REPORT_VERSION,
@@ -12,11 +14,44 @@ const MAX_FREQUENCY_ITEMS: usize = 50;
 const MAX_FREQUENCY_TEXT_BYTES: usize = 4 * 1024;
 const MAX_METADATA_TEXT_BYTES: usize = 4 * 1024;
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReportExportOptions {
+    pub include_source_metadata: bool,
+    pub include_core_metrics: bool,
+    pub include_keywords: bool,
+    pub include_bigrams: bool,
+    pub include_trigrams: bool,
+    pub include_whitespace: bool,
+}
+
+impl Default for ReportExportOptions {
+    fn default() -> Self {
+        Self {
+            include_source_metadata: true,
+            include_core_metrics: true,
+            include_keywords: true,
+            include_bigrams: true,
+            include_trigrams: true,
+            include_whitespace: true,
+        }
+    }
+}
+
 pub fn write_report(path: &Path, report: &AnalysisReport, format: &str) -> Result<(), AppError> {
+    write_report_with_options(path, report, format, ReportExportOptions::default())
+}
+
+pub fn write_report_with_options(
+    path: &Path,
+    report: &AnalysisReport,
+    format: &str,
+    options: ReportExportOptions,
+) -> Result<(), AppError> {
     validate_destination(path)?;
     let content = match format {
         "json" => serde_json::to_string_pretty(report).map_err(AppError::Serialize)?,
-        "markdown" => render_markdown(report),
+        "markdown" => render_markdown_with_options(report, options),
         other => return Err(AppError::UnsupportedFormat(other.into())),
     };
     atomic_write(path, content.as_bytes())
@@ -84,7 +119,10 @@ fn validate_report(report: &AnalysisReport) -> Result<(), AppError> {
     Ok(())
 }
 
-fn validate_frequency_items(items: &[FrequencyItem], possible_positions: usize) -> Result<(), AppError> {
+fn validate_frequency_items(
+    items: &[FrequencyItem],
+    possible_positions: usize,
+) -> Result<(), AppError> {
     if items.len() > MAX_FREQUENCY_ITEMS || (possible_positions == 0 && !items.is_empty()) {
         return Err(AppError::InvalidReportData);
     }
@@ -152,50 +190,68 @@ fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), AppError> {
     }
 }
 
+#[cfg(test)]
 fn render_markdown(r: &AnalysisReport) -> String {
+    render_markdown_with_options(r, ReportExportOptions::default())
+}
+
+fn render_markdown_with_options(r: &AnalysisReport, options: ReportExportOptions) -> String {
     let mut output = String::from(
         "# TextLens Analysis Report\n\n> Generated locally by TextLens. Document content is not included in this report.\n\n",
     );
 
     output.push_str(&format!("- **Report schema:** v{}\n", r.version));
-    if let Some(name) = &r.source.display_name {
-        output.push_str(&format!("- **Source:** `{}`\n", escape_inline(name)));
-    }
-    output.push_str(&format!("- **Analysis mode:** `{:?}`\n", r.source.mode));
-    if let Some(encoding) = &r.encoding {
-        output.push_str(&format!("- **Encoding:** {}\n", encoding.name));
+    if options.include_source_metadata {
+        if let Some(name) = &r.source.display_name {
+            output.push_str(&format!("- **Source:** `{}`\n", escape_inline(name)));
+        }
+        output.push_str(&format!("- **Analysis mode:** `{:?}`\n", r.source.mode));
+        if let Some(encoding) = &r.encoding {
+            output.push_str(&format!("- **Encoding:** {}\n", encoding.name));
+        }
     }
 
-    output.push_str("\n## Core metrics\n\n| Metric | Value |\n|---|---:|\n");
-    for (name, value) in [
-        ("Words", r.stats.words as u64),
-        ("Unique words", r.stats.unique_words as u64),
-        ("Longest word (characters)", r.stats.max_word_characters as u64),
-        ("Characters", r.stats.characters as u64),
-        ("Graphemes", r.stats.graphemes as u64),
-        ("Sentences", r.stats.sentences as u64),
-        ("Paragraphs", r.stats.paragraphs as u64),
-        ("Lines", r.stats.lines as u64),
-        ("Bytes", r.stats.bytes as u64),
-        ("Reading time (seconds)", r.stats.reading_seconds),
-        ("Speaking time (seconds)", r.stats.speaking_seconds),
-    ] {
-        output.push_str(&format!("| {name} | {value} |\n"));
+    if options.include_core_metrics {
+        output.push_str("\n## Core metrics\n\n| Metric | Value |\n|---|---:|\n");
+        for (name, value) in [
+            ("Words", r.stats.words as u64),
+            ("Unique words", r.stats.unique_words as u64),
+            ("Longest word (characters)", r.stats.max_word_characters as u64),
+            ("Characters", r.stats.characters as u64),
+            ("Graphemes", r.stats.graphemes as u64),
+            ("Sentences", r.stats.sentences as u64),
+            ("Paragraphs", r.stats.paragraphs as u64),
+            ("Lines", r.stats.lines as u64),
+            ("Bytes", r.stats.bytes as u64),
+            ("Reading time (seconds)", r.stats.reading_seconds),
+            ("Speaking time (seconds)", r.stats.speaking_seconds),
+        ] {
+            output.push_str(&format!("| {name} | {value} |\n"));
+        }
     }
 
     output.push('\n');
-    append_table(&mut output, "Keywords", &r.keywords);
-    append_table(&mut output, "Bigrams", &r.bigrams);
-    append_table(&mut output, "Trigrams", &r.trigrams);
-    output.push_str(&format!(
-        "## Whitespace & line endings\n\n- Spaces: {}\n- Tabs: {}\n- Blank lines: {}\n- Trailing-whitespace lines: {}\n- Dominant line ending: {}\n- Line endings mixed: {}\n\n---\n\nMade by the Sanskar\n",
-        r.whitespace.spaces,
-        r.whitespace.tabs,
-        r.whitespace.blank_lines,
-        r.whitespace.trailing_whitespace_lines,
-        r.whitespace.line_endings.dominant,
-        r.whitespace.line_endings.mixed
-    ));
+    if options.include_keywords {
+        append_table(&mut output, "Keywords", &r.keywords);
+    }
+    if options.include_bigrams {
+        append_table(&mut output, "Bigrams", &r.bigrams);
+    }
+    if options.include_trigrams {
+        append_table(&mut output, "Trigrams", &r.trigrams);
+    }
+    if options.include_whitespace {
+        output.push_str(&format!(
+            "## Whitespace & line endings\n\n- Spaces: {}\n- Tabs: {}\n- Blank lines: {}\n- Trailing-whitespace lines: {}\n- Dominant line ending: {}\n- Line endings mixed: {}\n\n",
+            r.whitespace.spaces,
+            r.whitespace.tabs,
+            r.whitespace.blank_lines,
+            r.whitespace.trailing_whitespace_lines,
+            r.whitespace.line_endings.dominant,
+            r.whitespace.line_endings.mixed
+        ));
+    }
+    output.push_str("---\n\nMade by the Sanskar\n");
     output
 }
 
@@ -249,6 +305,47 @@ mod tests {
         assert!(markdown.contains("Report schema:** v2"));
         assert!(markdown.contains("| Unique words | 2 |"));
         assert!(markdown.contains("| Longest word (characters) | 5 |"));
+    }
+
+    #[test]
+    fn custom_markdown_can_hide_source_metadata_and_sections() {
+        let mut report = analyze_text("alpha beta alpha", AnalysisOptions::default());
+        report.source.display_name = Some("private-name.txt".into());
+        let options = ReportExportOptions {
+            include_source_metadata: false,
+            include_core_metrics: false,
+            include_keywords: true,
+            include_bigrams: false,
+            include_trigrams: false,
+            include_whitespace: false,
+        };
+
+        let markdown = render_markdown_with_options(&report, options);
+        assert!(markdown.contains("## Keywords"));
+        assert!(!markdown.contains("private-name.txt"));
+        assert!(!markdown.contains("## Core metrics"));
+        assert!(!markdown.contains("## Bigrams"));
+        assert!(!markdown.contains("## Trigrams"));
+        assert!(!markdown.contains("## Whitespace & line endings"));
+        assert!(!markdown.contains("alpha beta alpha"));
+    }
+
+    #[test]
+    fn json_export_remains_canonical_when_markdown_options_are_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        let report = analyze_text("alpha beta alpha", AnalysisOptions::default());
+        let options = ReportExportOptions {
+            include_source_metadata: false,
+            include_core_metrics: false,
+            include_keywords: false,
+            include_bigrams: false,
+            include_trigrams: false,
+            include_whitespace: false,
+        };
+
+        write_report_with_options(&path, &report, "json", options).unwrap();
+        assert_eq!(read_report(&path).unwrap(), report);
     }
 
     #[test]

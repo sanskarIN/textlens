@@ -7,6 +7,7 @@ use crate::{
     },
     error::AppError,
     fileio,
+    report::ReportExportOptions,
     settings_backup::{self, SettingsData},
 };
 
@@ -39,10 +40,16 @@ pub async fn export_report(
     path: String,
     report: AnalysisReport,
     format: String,
+    options: Option<ReportExportOptions>,
 ) -> Result<(), String> {
     tracing::debug!(operation = "export_report", "report export requested");
     tauri::async_runtime::spawn_blocking(move || {
-        crate::report::write_report(PathBuf::from(path).as_path(), &report, &format)
+        crate::report::write_report_with_options(
+            PathBuf::from(path).as_path(),
+            &report,
+            &format,
+            options.unwrap_or_default(),
+        )
     })
     .await
     .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
