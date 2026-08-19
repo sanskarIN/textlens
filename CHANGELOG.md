@@ -6,6 +6,19 @@ All notable TextLens changes are documented here.
 
 ### Added
 
+- Unique-word and longest-word metrics in analysis results and exported reports.
+- Versioned settings backup/restore with strict validation and a 64 KiB safety limit.
+- Repeatable configurable analyzer benchmark iterations.
+
+### Changed
+
+- Encoding diagnostics now flag undefined Windows-1252 bytes and replace them safely.
+- The desktop workspace now surfaces vocabulary metrics alongside the existing live counts.
+
+## [0.1.0] - 2026-08-19
+
+### Added
+
 - Rust + Tauri 2 desktop architecture.
 - Unicode-aware word and grapheme analysis.
 - Character, byte, sentence, paragraph, and line counts.
@@ -19,7 +32,3 @@ All notable TextLens changes are documented here.
 - Settings, onboarding, About, support, and funding UI.
 - Rust unit/integration/property tests and TypeScript unit tests.
 - CI, security scanning, dependency updates, release automation, and documentation.
-
-## [0.1.0] - 2026-08-19
-
-Initial production-oriented development baseline.
