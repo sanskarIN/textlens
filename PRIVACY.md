@@ -6,7 +6,7 @@ TextLens analyzes text locally on your computer. Core functionality requires no 
 
 ## Data handled
 
-TextLens may process typed/pasted text, local files you explicitly select, local analysis settings, optional recent-file metadata you explicitly enable, saved aggregate reports you explicitly select for comparison, and reports or settings backups you explicitly export.
+TextLens may process typed/pasted text, local files you explicitly select, local analysis settings, reusable local analysis presets, optional recent-file metadata you explicitly enable, saved aggregate reports you explicitly select for comparison, and reports or settings backups you explicitly export.
 
 ## Pasted text
 
@@ -22,7 +22,15 @@ Theme, reading/speaking rates, result limits, keyword exclusions, the recent-fil
 
 Keyword exclusions are preferences only. They filter the displayed/exported keyword summary while core counts and n-grams continue to use the complete analyzed token stream.
 
-TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain newer preferences restore them to privacy-preserving defaults.
+TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain newer preferences restore them to privacy-preserving defaults.
+
+## Local analysis presets
+
+Analysis presets are optional reusable configurations stored only in local WebView application storage. A preset can contain only a display name, reading and speaking rates, top-keyword and top-n-gram limits, and keyword exclusions.
+
+Presets never contain analyzed text, source file paths, recent-file entries, report contents, encoding samples, theme choice, reduced-motion preference, or the recent-file-history opt-in. Preset names and collections are bounded, and persisted values are validated before use.
+
+Presets are device-local and are not included in the current settings backup schema. They remain stored until you delete them individually or clear the application WebView storage.
 
 ## Optional recent-file metadata
 
@@ -52,7 +60,7 @@ Quick action search terms are UI state inside the local WebView. They are used o
 
 ## Network behavior
 
-Core analysis, settings backup/restore, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
+Core analysis, local analysis presets, settings backup/restore, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
 
 ## Logging
 
@@ -60,7 +68,7 @@ Production code must never log raw analyzed text, full private document paths, i
 
 ## Retention
 
-There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
+There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Analysis presets remain until individually deleted or application WebView storage is cleared. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
 
 ## Contact
 

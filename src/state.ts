@@ -1,4 +1,4 @@
-import type { AppSettings, ThemePreference } from "./types";
+import type { AnalysisOptions, AppSettings, ThemePreference } from "./types";
 
 const STORAGE_KEY = "textlens.settings.v1";
 const MAX_KEYWORD_EXCLUSIONS = 100;
@@ -15,15 +15,22 @@ export const defaultSettings: AppSettings = {
   recentFilesEnabled: false,
 };
 
+export function parseAnalysisOptions(value: unknown): AnalysisOptions {
+  const source = isRecord(value) ? value : {};
+  return {
+    readingWpm: validRate(source.readingWpm, defaultSettings.readingWpm),
+    speakingWpm: validRate(source.speakingWpm, defaultSettings.speakingWpm),
+    topKeywords: validLimit(source.topKeywords, defaultSettings.topKeywords),
+    topNgrams: validLimit(source.topNgrams, defaultSettings.topNgrams),
+    keywordExclusions: validKeywordExclusions(source.keywordExclusions),
+  };
+}
+
 export function parseSettings(value: unknown): AppSettings {
   if (!isRecord(value)) return { ...defaultSettings, keywordExclusions: [] };
   return {
     theme: validTheme(value.theme),
-    readingWpm: validRate(value.readingWpm, defaultSettings.readingWpm),
-    speakingWpm: validRate(value.speakingWpm, defaultSettings.speakingWpm),
-    topKeywords: validLimit(value.topKeywords, defaultSettings.topKeywords),
-    topNgrams: validLimit(value.topNgrams, defaultSettings.topNgrams),
-    keywordExclusions: validKeywordExclusions(value.keywordExclusions),
+    ...parseAnalysisOptions(value),
     reducedMotion:
       typeof value.reducedMotion === "boolean" ? value.reducedMotion : defaultSettings.reducedMotion,
     recentFilesEnabled:

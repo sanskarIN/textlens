@@ -8,6 +8,10 @@ export interface AnalysisOptions {
   keywordExclusions: string[];
 }
 
+export interface AnalysisPreset extends AnalysisOptions {
+  name: string;
+}
+
 export interface SourceInfo {
   kind: "pasted" | "file";
   displayName: string | null;
