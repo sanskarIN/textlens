@@ -12,6 +12,7 @@ export const defaultSettings: AppSettings = {
   topNgrams: 10,
   keywordExclusions: [],
   reducedMotion: false,
+  recentFilesEnabled: false,
 };
 
 export function parseSettings(value: unknown): AppSettings {
@@ -23,14 +24,21 @@ export function parseSettings(value: unknown): AppSettings {
     topKeywords: validLimit(value.topKeywords, defaultSettings.topKeywords),
     topNgrams: validLimit(value.topNgrams, defaultSettings.topNgrams),
     keywordExclusions: validKeywordExclusions(value.keywordExclusions),
-    reducedMotion: typeof value.reducedMotion === "boolean" ? value.reducedMotion : defaultSettings.reducedMotion,
+    reducedMotion:
+      typeof value.reducedMotion === "boolean" ? value.reducedMotion : defaultSettings.reducedMotion,
+    recentFilesEnabled:
+      typeof value.recentFilesEnabled === "boolean"
+        ? value.recentFilesEnabled
+        : defaultSettings.recentFilesEnabled,
   };
 }
 
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? parseSettings(JSON.parse(raw) as unknown) : { ...defaultSettings, keywordExclusions: [] };
+    return raw
+      ? parseSettings(JSON.parse(raw) as unknown)
+      : { ...defaultSettings, keywordExclusions: [] };
   } catch {
     return { ...defaultSettings, keywordExclusions: [] };
   }
@@ -45,7 +53,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function validTheme(value: unknown): ThemePreference {
-  return value === "light" || value === "dark" || value === "system" ? value : defaultSettings.theme;
+  return value === "light" || value === "dark" || value === "system"
+    ? value
+    : defaultSettings.theme;
 }
 
 function validRate(value: unknown, fallback: number): number {
