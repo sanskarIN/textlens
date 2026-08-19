@@ -36,10 +36,19 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Command palette / Quick actions for keyboard-first workflows.
 - [x] Optional reusable local analysis presets for reading rate, speaking rate, exclusions, and result limits.
 
-## 1.0 — Stable desktop release
+## 1.0+ — Stable desktop release line
 
 - [ ] Complete Windows/macOS/Linux clean-checkout release-candidate audit.
 - [ ] Confirm installer signing/notarization where credentials are available.
 - [ ] Complete native screen-reader review.
-- [ ] Freeze the versioned report schema and document compatibility guarantees.
+- [x] Freeze the versioned report schema and document compatibility guarantees in `docs/report-schema.md`.
 - [ ] Publish real platform screenshots produced from verified packaged builds.
+
+## 2.0.12 source milestone
+
+- [x] Synchronize npm, Cargo, and Tauri application versions to 2.0.12.
+- [x] Preserve report schema v2 independently from the application version.
+- [x] Add a regression guard against accidental report-schema bumps.
+- [x] Document the stable schema-v2 and legacy-v1 import compatibility contract.
+- [x] Keep release tag/version and checksum integrity tooling in the release path.
+- [x] Keep remaining native packaging, signing, accessibility, and screenshot work as evidence-based external release gates.
