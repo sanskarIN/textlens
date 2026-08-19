@@ -20,6 +20,8 @@ pub struct SettingsData {
     #[serde(default)]
     pub keyword_exclusions: Vec<String>,
     pub reduced_motion: bool,
+    #[serde(default)]
+    pub recent_files_enabled: bool,
 }
 
 impl SettingsData {
@@ -140,6 +142,7 @@ mod tests {
             top_ngrams: 10,
             keyword_exclusions: vec!["the".into(), "and".into()],
             reduced_motion: true,
+            recent_files_enabled: true,
         }
     }
 
@@ -153,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_legacy_version_one_backup_without_exclusions() {
+    fn reads_legacy_version_one_backup_without_new_preferences() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
         fs::write(
@@ -163,6 +166,7 @@ mod tests {
         .unwrap();
         let restored = read(&path).unwrap();
         assert!(restored.keyword_exclusions.is_empty());
+        assert!(!restored.recent_files_enabled);
     }
 
     #[test]
