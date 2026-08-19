@@ -29,7 +29,6 @@ export const en = {
   openFile: "Open file",
   clear: "Clear",
   privacyNote: "Offline by design. Your text is processed locally and is never uploaded.",
-  ready: "Ready",
   recentFiles: "Recent files",
   recentFilesEyebrow: "Local metadata",
   recentFilesHint:
