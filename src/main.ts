@@ -6,6 +6,13 @@ import { comparisonMetrics, keywordDeltas, type ComparisonUnit } from "./lib/com
 import { formatBytes, formatDuration, formatInteger } from "./lib/format";
 import { encodingSummary, escapeHtml, metricRows } from "./lib/presentation";
 import { filterQuickActions, type SearchableAction } from "./lib/quickActions";
+import {
+  clearRecentFiles,
+  loadRecentFiles,
+  recordRecentFile,
+  saveRecentFiles,
+  type RecentFileEntry,
+} from "./lib/recentFiles";
 import { defaultSettings, loadSettings, parseSettings, saveSettings } from "./state";
 import type {
   AnalysisOptions,
@@ -56,6 +63,15 @@ app.innerHTML = `
         <p id="privacyHint">${en.privacyNote}</p>
         <p id="analysisStatus" role="status" aria-live="polite">${en.ready}</p>
       </div>
+    </section>
+
+    <section id="recentFilesPanel" class="panel" aria-labelledby="recentFilesHeading" hidden>
+      <div class="heading compact">
+        <div><p class="eyebrow">${en.recentFilesEyebrow}</p><h2 id="recentFilesHeading">${en.recentFiles}</h2></div>
+        <button id="clearRecentFilesButton" type="button">${en.clearRecentFiles}</button>
+      </div>
+      <p class="section-hint">${en.recentFilesHint}</p>
+      <div id="recentFilesList" class="recent-files"></div>
     </section>
 
     <section aria-labelledby="overviewHeading">
@@ -125,6 +141,7 @@ app.innerHTML = `
       <label>${en.topKeywords}<input id="topKeywordsInput" type="number" min="1" max="50"></label>
       <label>${en.topNgrams}<input id="topNgramsInput" type="number" min="1" max="50"></label>
       <label class="check"><input id="reducedMotionInput" type="checkbox">${en.reduceMotion}</label>
+      <label class="check settings-wide"><input id="recentFilesEnabledInput" type="checkbox"><span>${en.rememberRecentFiles}<small>${en.rememberRecentFilesHint}</small></span></label>
       <label class="settings-wide">${en.keywordExclusions}
         <textarea id="keywordExclusionsInput" rows="3" maxlength="6600" placeholder="${en.keywordExclusionsPlaceholder}" aria-describedby="keywordExclusionsHint"></textarea>
         <small id="keywordExclusionsHint">${en.keywordExclusionsHint}</small>
@@ -220,11 +237,15 @@ const compareDialog = get<HTMLDialogElement>("compareDialog");
 const quickActionsDialog = get<HTMLDialogElement>("quickActionsDialog");
 const quickActionsSearch = get<HTMLInputElement>("quickActionsSearch");
 const quickActionsList = get<HTMLElement>("quickActionsList");
+const recentFilesPanel = get<HTMLElement>("recentFilesPanel");
+const recentFilesList = get<HTMLElement>("recentFilesList");
 const comparisonMeta = get<HTMLElement>("comparisonMeta");
 const comparisonMetricsBody = get<HTMLTableSectionElement>("comparisonMetricsBody");
 const comparisonKeywords = get<HTMLElement>("comparisonKeywords");
 
 let settings = loadSettings();
+if (!settings.recentFilesEnabled) clearRecentFiles();
+let recentFiles: RecentFileEntry[] = settings.recentFilesEnabled ? loadRecentFiles() : [];
 let report: AnalysisReport | null = null;
 let ngram: 2 | 3 = 2;
 let timer: number | undefined;
@@ -319,11 +340,38 @@ function renderDiagnostics(current: AnalysisReport | null): void {
     <div><span>${en.graphemes}</span><strong>${formatInteger(current.stats.graphemes)}</strong></div>`;
 }
 
+function renderRecentFiles(): void {
+  recentFilesPanel.hidden = !settings.recentFilesEnabled;
+  if (!settings.recentFilesEnabled) return;
+
+  if (!recentFiles.length) {
+    recentFilesList.className = "recent-files empty";
+    recentFilesList.textContent = en.noRecentFiles;
+    return;
+  }
+
+  recentFilesList.className = "recent-files";
+  recentFilesList.innerHTML = recentFiles
+    .map(
+      (entry, index) =>
+        `<div><div><strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(formatBytes(entry.size))} · ${escapeHtml(formatRecentTimestamp(entry.openedAt))}</span></div><button type="button" data-recent-remove="${index}" aria-label="${escapeHtml(`${en.removeRecentFile} ${entry.name}`)}">${en.removeRecentFile}</button></div>`,
+    )
+    .join("");
+}
+
+function formatRecentTimestamp(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
 function render(current: AnalysisReport | null): void {
   renderMetrics(current);
   renderFrequency(keywords, current?.keywords ?? []);
   renderFrequency(ngrams, current ? (ngram === 2 ? current.bigrams : current.trigrams) : []);
   renderDiagnostics(current);
+  renderRecentFiles();
   setExport();
 }
 
@@ -380,6 +428,14 @@ async function openFile(): Promise<void> {
     sequence += 1;
     input.value = "";
     report = next;
+    if (settings.recentFilesEnabled && next.source.displayName && next.source.fileSize !== null) {
+      recentFiles = recordRecentFile(recentFiles, {
+        name: next.source.displayName,
+        size: next.source.fileSize,
+        openedAt: new Date().toISOString(),
+      });
+      saveRecentFiles(recentFiles);
+    }
     badge.textContent = `${next.source.displayName ?? "File"} · ${next.source.mode}`;
     render(report);
     setStatus(next.source.mode === "streaming" ? en.largeFileAnalyzed : en.fileAnalyzed);
@@ -553,10 +609,18 @@ async function restoreSettings(): Promise<void> {
     });
     if (typeof path !== "string") return;
     const restored = await invoke<AppSettings>("import_settings", { path });
+    const previousRecentFilesEnabled = settings.recentFilesEnabled;
     settings = parseSettings(restored);
     saveSettings(settings);
+    if (!settings.recentFilesEnabled) {
+      clearRecentFiles();
+      recentFiles = [];
+    } else if (!previousRecentFilesEnabled) {
+      recentFiles = loadRecentFiles();
+    }
     applySettings();
     syncSettings();
+    renderRecentFiles();
     setStatus(en.settingsRestored);
     if (input.value) schedule();
   } catch (error) {
@@ -572,6 +636,7 @@ function syncSettings(): void {
   get<HTMLInputElement>("topNgramsInput").value = String(settings.topNgrams);
   get<HTMLTextAreaElement>("keywordExclusionsInput").value = settings.keywordExclusions.join(", ");
   get<HTMLInputElement>("reducedMotionInput").checked = settings.reducedMotion;
+  get<HTMLInputElement>("recentFilesEnabledInput").checked = settings.recentFilesEnabled;
 }
 
 function bounded(id: string, min: number, max: number, fallback: number): number {
@@ -586,6 +651,7 @@ function applySettings(): void {
 
 function saveSettingsForm(event: Event): void {
   event.preventDefault();
+  const previousRecentFilesEnabled = settings.recentFilesEnabled;
   const keywordExclusions = get<HTMLTextAreaElement>("keywordExclusionsInput")
     .value.split(/[\n,]+/)
     .map((value) => value.trim());
@@ -597,12 +663,27 @@ function saveSettingsForm(event: Event): void {
     topNgrams: bounded("topNgramsInput", 1, 50, settings.topNgrams),
     keywordExclusions,
     reducedMotion: get<HTMLInputElement>("reducedMotionInput").checked,
+    recentFilesEnabled: get<HTMLInputElement>("recentFilesEnabledInput").checked,
   });
   saveSettings(settings);
+  if (!settings.recentFilesEnabled) {
+    clearRecentFiles();
+    recentFiles = [];
+  } else if (!previousRecentFilesEnabled) {
+    recentFiles = [];
+  }
   applySettings();
   settingsDialog.close();
+  renderRecentFiles();
   setStatus(en.settingsSaved);
   if (input.value) schedule();
+}
+
+function removeRecentFile(index: number): void {
+  if (!Number.isInteger(index) || index < 0 || index >= recentFiles.length) return;
+  recentFiles = recentFiles.filter((_, currentIndex) => currentIndex !== index);
+  saveRecentFiles(recentFiles);
+  renderRecentFiles();
 }
 
 get<HTMLButtonElement>("openButton").onclick = () => void openFile();
@@ -620,6 +701,11 @@ get<HTMLButtonElement>("aboutButton").onclick = () => aboutDialog.showModal();
 get<HTMLButtonElement>("closeAboutButton").onclick = () => aboutDialog.close();
 get<HTMLButtonElement>("closeCompareButton").onclick = () => compareDialog.close();
 get<HTMLButtonElement>("closeQuickActionsButton").onclick = () => quickActionsDialog.close();
+get<HTMLButtonElement>("clearRecentFilesButton").onclick = () => {
+  clearRecentFiles();
+  recentFiles = [];
+  renderRecentFiles();
+};
 get<HTMLButtonElement>("dismissOnboarding").onclick = () => {
   localStorage.setItem("textlens.onboarding.dismissed", "1");
   get("onboarding").hidden = true;
@@ -627,14 +713,23 @@ get<HTMLButtonElement>("dismissOnboarding").onclick = () => {
 };
 get<HTMLButtonElement>("resetSettingsButton").onclick = () => {
   settings = { ...defaultSettings, keywordExclusions: [] };
+  clearRecentFiles();
+  recentFiles = [];
   saveSettings(settings);
   applySettings();
   syncSettings();
+  renderRecentFiles();
   setStatus(en.defaultsRestored);
 };
 get<HTMLButtonElement>("backupSettingsButton").onclick = () => void backupSettings();
 get<HTMLButtonElement>("restoreSettingsButton").onclick = () => void restoreSettings();
 get<HTMLFormElement>("settingsForm").addEventListener("submit", saveSettingsForm);
+recentFilesList.addEventListener("click", (event) => {
+  const button = (event.target as Element).closest<HTMLButtonElement>("[data-recent-remove]");
+  if (!button) return;
+  const index = Number(button.dataset.recentRemove);
+  removeRecentFile(index);
+});
 quickActionsSearch.addEventListener("input", () => renderQuickActions(quickActionsSearch.value));
 quickActionsList.addEventListener("click", (event) => {
   const button = (event.target as Element).closest<HTMLButtonElement>("[data-quick-action]");
