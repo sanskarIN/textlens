@@ -1,0 +1,3 @@
+use std::time::Instant;
+use textlens_lib::domain::{analyzer::analyze_text,models::AnalysisOptions};
+fn main(){let mib=std::env::args().nth(1).and_then(|v|v.parse::<usize>().ok()).filter(|v|*v>0).unwrap_or(10);let sample="TextLens measures multilingual text safely. नमस्ते दुनिया. こんにちは世界.\n";let target=mib*1024*1024;let text=sample.repeat(target.div_ceil(sample.len()));let start=Instant::now();let report=analyze_text(&text,AnalysisOptions::default());let elapsed=start.elapsed();let actual=text.len() as f64/(1024.0*1024.0);println!("TextLens synthetic benchmark");println!("input_mib={actual:.2}");println!("elapsed_ms={:.2}",elapsed.as_secs_f64()*1000.0);println!("throughput_mib_per_s={:.2}",actual/elapsed.as_secs_f64());println!("words={}",report.stats.words);}
