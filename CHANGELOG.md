@@ -9,11 +9,25 @@ All notable TextLens changes are documented here.
 - Unique-word and longest-word metrics in analysis results and exported reports.
 - Versioned settings backup/restore with strict validation and a 64 KiB safety limit.
 - Repeatable configurable analyzer benchmark iterations.
+- Validated JSON report import with a 512 KiB safety limit and explicit schema compatibility checks.
+- Local comparison between the current analysis and a previously exported TextLens report.
+- Local keyword-exclusion lists that filter keyword summaries without changing core counts or n-grams.
+- Searchable keyboard-first Quick actions palette for common workspace operations.
+- Frontend unit coverage for report comparison, quick-action filtering, and keyword-exclusion settings parsing.
+- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, and keyword filtering.
 
 ### Changed
 
+- New analyses now emit report schema v2 so vocabulary metrics have an explicit compatibility boundary.
+- Legacy schema-v1 report JSON remains importable; vocabulary deltas unavailable in v1 are omitted from comparisons instead of being fabricated.
 - Encoding diagnostics now flag undefined Windows-1252 bytes and replace them safely.
 - The desktop workspace now surfaces vocabulary metrics alongside the existing live counts.
+- Settings backups remain schema-v1 compatible while defaulting the new keyword-exclusion list for older backups.
+
+### Security
+
+- Imported report metadata, frequencies, sizes, schema versions, and numeric relationships are validated before presentation.
+- Report comparison operates on aggregate exported report data and never attempts to reconstruct source document text.
 
 ## [0.1.0] - 2026-08-19
 
