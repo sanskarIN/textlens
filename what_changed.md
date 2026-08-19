@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-Version **2.0.12** source milestone, stable report-schema freeze, release-integrity documentation, and final source-owned audit — 2026-08-19.
+Version **2.0.12** source milestone, stable report-schema freeze, deterministic encoding-policy review, release-identity hardening, documentation completion, and final source-owned audit — 2026-08-19.
 
-The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. This continuation advances the application source version from `0.1.0` to `2.0.12` and completes the remaining source/documentation-owned stable-release roadmap item: freezing and documenting the report-schema compatibility contract.
+The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. This continuation advances the application source version from `0.1.0` to `2.0.12`, completes the stable report-schema compatibility contract, closes the conditional encoding-review roadmap item with an explicit conservative decision, and strengthens dependency-free release identity checks.
 
 This file deliberately separates source completion from environment-dependent release evidence. Do not describe unexecuted package-manager, native platform, signing, accessibility, screenshot, or release-artifact checks as completed.
 
@@ -32,15 +32,55 @@ Updated independently with granular commits:
 - `src-tauri/Cargo.toml` → `2.0.12`;
 - `src-tauri/tauri.conf.json` → `2.0.12`.
 
-The existing runtime About UI continues to resolve the packaged version from Tauri metadata rather than a copied display literal.
-
-The existing dependency-free version checker was exercised against the 2.0.12 metadata in the available local Node environment and returned:
-
-```text
-Version metadata is synchronized at 2.0.12.
-```
+The runtime About UI continues to resolve the packaged version from Tauri metadata rather than a copied display literal.
 
 Application version and report-schema version are intentionally independent. The app is `2.0.12`; the report schema remains `v2`.
+
+### Expanded dependency-free version/release identity gate
+
+The existing version checker originally validated only npm/Cargo/Tauri metadata. That left a maintenance gap: README, changelog, or version-specific release notes could silently disagree with the packaged version.
+
+`scripts/check-version-sync.mjs` now verifies all of the following without third-party dependencies:
+
+- `package.json` version;
+- `src-tauri/Cargo.toml` package version;
+- `src-tauri/tauri.conf.json` version;
+- README contains `Current source version: <version>`;
+- `CHANGELOG.md` contains a matching `## [<version>]` section;
+- `docs/releases/v<version>.md` exists and is readable.
+
+The expanded gate was exercised locally with Node 22 against 2.0.12 release-identity fixtures and returned:
+
+```text
+Version metadata and release documentation are synchronized at 2.0.12.
+```
+
+A negative case with the version-specific release-note file removed was also exercised and failed as intended.
+
+### Release tag verification for 2.0.12
+
+The dependency-free release-tag helper was exercised with the 2.0.12 package version:
+
+- `v2.0.12` → accepted;
+- `v2.0.11` → rejected.
+
+This confirms the tag gate tracks the new application version rather than the earlier 0.1.0 value.
+
+### CI fail-fast release identity ordering
+
+`.github/workflows/ci.yml` previously ran `npm install` before the dependency-free version check. That meant registry failure could mask simple version/document drift.
+
+The frontend job now runs:
+
+1. checkout;
+2. Node setup;
+3. `npm run version:check`;
+4. dependency installation;
+5. type/lint/format/docs/test/build gates.
+
+The release workflow now verifies both the release tag and version/release documentation before Rust toolchain setup, Linux prerequisite installation, or npm dependency installation.
+
+This reduces wasted runner work and makes release identity failures independent from registry/toolchain availability.
 
 ### Stable report-schema contract completed
 
@@ -74,23 +114,42 @@ The test asserts that `CURRENT_REPORT_VERSION == 2` and explains that changing i
 
 This is not intended to prevent all future schema changes. It prevents an accidental schema bump during unrelated application-version work.
 
+### Encoding-policy review completed
+
+The remaining conditional encoding-heuristics roadmap entry was re-audited instead of being treated as a request to add statistical guessing for feature-count purposes.
+
+ADR-0003 now records the 2.0.12 review decision:
+
+- detect UTF-8 BOM;
+- detect UTF-16 LE/BE BOM;
+- otherwise accept valid UTF-8;
+- otherwise use a clearly labelled Windows-1252 fallback;
+- surface undefined Windows-1252 byte replacements through diagnostics;
+- keep UTF-16 full-file decoding where byte-oriented line streaming could split code units.
+
+A future heuristic change must be deterministic, offline, conservative about uncertainty, clearly labelled, backed by synthetic regression fixtures/evidence, and consistent with privacy/reproducibility goals.
+
+The roadmap now marks this review complete because retaining the conservative policy is the deliberate design result.
+
 ### Roadmap synchronization
 
 `ROADMAP.md` now:
 
-- marks the report-schema freeze/compatibility guarantee complete;
+- marks report-schema freeze/compatibility complete;
+- marks the encoding heuristic review complete with the conservative decision;
 - records the 2.0.12 source milestone;
 - explicitly preserves report schema v2 independently from app version 2.0.12;
-- keeps native packaging/signing/accessibility/screenshots as external evidence gates;
-- leaves encoding heuristic changes conditional rather than inventing a heuristic merely to check a box.
+- keeps native packaging/signing/accessibility/screenshots as external evidence gates.
 
 ### Changelog cut for 2.0.12
 
 `CHANGELOG.md` now contains:
 
 - a clean `[Unreleased]` section for future changes;
-- a `[2.0.12] - 2026-08-19` section containing the reliability, privacy, workflow, report, update, version, schema, and release-integrity work accumulated for this source milestone;
-- explicit note that application version 2.0.12 does not change report schema v2.
+- a `[2.0.12] - 2026-08-19` section containing reliability, privacy, workflow, report, update, version, schema, encoding-policy, and release-integrity work;
+- explicit note that application version 2.0.12 does not change report schema v2;
+- expanded version/release-document gate coverage;
+- CI/release fail-fast identity ordering.
 
 The original `0.1.0` historical section remains intact.
 
@@ -105,6 +164,42 @@ The original `0.1.0` historical section remains intact.
 - updates the release tag example from `v0.1.0` to `v2.0.12`;
 - requires report-schema documentation updates for compatibility-affecting contributions.
 
+### Development and architecture documentation synchronization
+
+`docs/development.md` now:
+
+- includes `npm run version:check` in the frontend workflow;
+- explicitly separates application-version changes from report-schema changes;
+- requires `docs/report-schema.md` updates for canonical JSON contract changes;
+- references the report-schema freeze regression test;
+- requires deliberate migration/legacy/future-version behavior for real schema changes;
+- references both recent-file and failure-safe-storage ADRs before adding new persistence.
+
+`docs/architecture.md` now documents:
+
+- the guarded `startup.ts` frontend entry boundary;
+- storage probe/session fallback behavior;
+- manual update UI network boundary;
+- `storage.ts` as a shared reliability helper;
+- application version 2.0.12 versus report schema v2;
+- the schema compatibility document/regression guard;
+- streaming single-line memory limitation;
+- ADR-0010 and ADR-0011 in the architecture record list.
+
+### Testing documentation synchronization
+
+`docs/testing.md` now covers:
+
+- failure-safe storage helper tests;
+- stable report-schema integration guard;
+- expanded version/release-document gate behavior;
+- CI/release fail-fast ordering;
+- 2.0.12 tag validation;
+- canonical JSON source-text/full-path checks;
+- blocked-storage fallback/recovery acceptance;
+- manual update no-background-polling acceptance;
+- final artifact SHA-256 manifest verification.
+
 ### Release guide synchronization
 
 `docs/release.md` now:
@@ -118,7 +213,7 @@ The original `0.1.0` historical section remains intact.
 
 ### Release template hardening
 
-`.github/RELEASE_TEMPLATE.md` now includes explicit checks for:
+`.github/RELEASE_TEMPLATE.md` includes explicit checks for:
 
 - `npm run version:check`;
 - intended-tag validation;
@@ -162,9 +257,26 @@ Observed at the start of this 2.0.12 pass:
 - repository search returned no unresolved `TODO`, `FIXME`, `HACK`, or `XXX` implementation markers;
 - `package-lock.json` remained absent;
 - `src-tauri/Cargo.lock` remained absent;
-- `ROADMAP.md` showed the report-schema compatibility freeze as the remaining source/documentation-owned stable milestone.
+- `ROADMAP.md` showed report-schema freeze and a conditional encoding heuristic review as the source-side open/ambiguous roadmap entries.
 
-The missing lockfiles are not being fabricated. They must be generated by npm/Cargo in a registry-capable environment.
+The missing lockfiles are not being fabricated. They must be generated by their real package managers in a registry-capable/toolchain-capable environment.
+
+## Lockfile generation attempt in this pass
+
+The local environment provides Node/npm but does not provide Cargo/Rust.
+
+Observed:
+
+```text
+cargo: command not found
+rustc: command not found
+npm: 10.9.2
+node: v22.16.0
+```
+
+A real npm `--package-lock-only` generation attempt was made against the exact 2.0.12 package manifest. The registry operation did not complete within the available execution window and no `package-lock.json` was produced.
+
+Because no real lockfile was produced, none was committed. `src-tauri/Cargo.lock` also remains ungenerated because Cargo is unavailable in this execution environment.
 
 ## Product source status retained from the merged final audit
 
@@ -210,7 +322,7 @@ Implemented:
 
 Synthetic deterministic fixtures cover multilingual text, punctuation, malformed UTF-8, Windows-1252 edge bytes, and UTF-16 boundaries.
 
-The roadmap still lists encoding heuristic improvement as conditional. No heuristic was added in this pass because the project policy requires any such change to be deterministic, offline, conservative, clearly labelled, and justified by actual evidence.
+The encoding policy has now been explicitly re-reviewed for 2.0.12 and retained by design rather than left as an ambiguous future checkbox.
 
 ### Canonical reports
 
@@ -327,9 +439,10 @@ Implemented:
 
 Implemented:
 
-- npm/Cargo/Tauri version-sync checker;
+- npm/Cargo/Tauri application-version synchronization check;
+- README/changelog/version-specific release-note identity checks in the same dependency-free gate;
 - release-tag/version checker;
-- tag check before release dependency install/platform packaging;
+- dependency-free identity checks before dependency/toolchain setup in CI/release workflows;
 - deterministic SHA-256 artifact manifest generator;
 - strict manifest verifier covering malformed lines, path traversal, duplicates, missing/extra files, and digest mismatches.
 
@@ -358,7 +471,7 @@ Repository documentation now includes:
 - `docs/performance.md`
 - `docs/repository-governance.md`
 - `docs/branch-protection.md`
-- ADRs including failure-safe local storage and the earlier architecture/privacy/report workflow decisions.
+- ADRs including the re-reviewed conservative encoding policy, Markdown report customization, and failure-safe local storage.
 
 ## Verification performed in this 2.0.12 pass
 
@@ -369,13 +482,20 @@ Actually performed:
 - checked open issues and open pull requests at the beginning of the pass;
 - searched for unresolved implementation markers;
 - confirmed npm/Cargo lockfiles remain absent rather than pretending they exist;
-- inspected the roadmap and identified the report-schema freeze as source-owned remaining work;
+- inspected the roadmap and identified the report-schema freeze plus conditional encoding review as remaining source-side work;
 - inspected Rust report validation/import logic and report model definitions;
 - synchronized all three application version sources to 2.0.12;
-- exercised the repository version-sync algorithm locally with Node 22 against 2.0.12 metadata and received success;
+- exercised the original version metadata algorithm locally with Node 22 against 2.0.12 and received success;
+- extended the version gate to README/changelog/version-specific release-note identity;
+- exercised the expanded version/release-document algorithm with a passing 2.0.12 case and a failing missing-release-note case;
+- exercised the 2.0.12 tag checker with matching and mismatching tags;
+- attempted real npm package-lock generation; registry completion was not available and no lockfile was produced;
+- confirmed Cargo/Rust are unavailable locally, so no Cargo lockfile/test claim was fabricated;
 - added an explicit report-schema v2 compatibility document;
 - added a Rust regression assertion freezing `CURRENT_REPORT_VERSION` at v2;
-- updated roadmap, changelog, README, release guide, release template, and version-specific release notes.
+- re-reviewed encoding heuristics and reaffirmed the deterministic conservative policy in ADR-0003;
+- moved dependency-free release identity checks ahead of dependency/toolchain setup in CI and release automation;
+- updated roadmap, changelog, README, development, architecture, testing, release guide, release template, version-specific release notes, and this handoff.
 
 ## Verification not truthfully completed in this environment
 
@@ -398,14 +518,14 @@ cargo test --all-targets
 cargo run --release --example benchmark -- 16 5
 ```
 
-The version-sync algorithm itself was executed successfully for 2.0.12; the list above refers to the complete clean repository suite.
+Clarification: the dependency-free version/release-document algorithm and release-tag algorithm were exercised locally against the 2.0.12 identity. The list above refers to the complete clean repository suite from an actual repository checkout with dependencies/toolchains available.
 
 ## Remaining external release gates
 
 These are evidence/distribution tasks, not missing product source features:
 
-1. Generate and review `package-lock.json` using npm.
-2. Generate and review `src-tauri/Cargo.lock` using Cargo.
+1. Generate and review `package-lock.json` using npm in a registry-capable environment.
+2. Generate and review `src-tauri/Cargo.lock` using Cargo in a Rust-enabled registry-capable environment.
 3. Run the full clean frontend/Rust suite from the reviewed dependency graph.
 4. Record the release benchmark with machine/OS/toolchain/input/iteration evidence.
 5. Build packages from clean Windows, macOS, and Linux checkouts.
@@ -419,7 +539,7 @@ These are evidence/distribution tasks, not missing product source features:
 
 ## Definition-of-done status
 
-**Source-owned implementation for the current TextLens milestone, including the 2.0.12 version preparation and stable report-schema compatibility contract, is complete.**
+**Source-owned implementation for the current TextLens milestone, including 2.0.12 version preparation, stable report-schema compatibility, encoding-policy review, release identity gating, and documentation synchronization, is complete.**
 
 **Stable cross-platform release evidence is not complete.** Do not claim TextLens 2.0.12 is fully packaged, signed/notarized, native-accessibility-verified, lockfile-reproducible, screenshot-verified, or bug-free across every supported desktop until the external gates above are actually executed and recorded.
 
