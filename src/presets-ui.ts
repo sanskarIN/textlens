@@ -62,7 +62,7 @@ function renderPresetList(list: HTMLElement): void {
     const name = document.createElement("strong");
     name.textContent = preset.name;
     const summary = document.createElement("span");
-    summary.textContent = `${preset.readingWpm} / ${preset.speakingWpm} words/min · ${preset.topKeywords} keywords · ${preset.topNgrams} n-grams`;
+    summary.textContent = `${preset.readingWpm} / ${preset.speakingWpm} ${en.wordsPerMinuteUnit} · ${preset.topKeywords} ${en.keywordsUnit} · ${preset.topNgrams} ${en.ngramsUnit}`;
     details.append(name, summary);
 
     const actions = document.createElement("div");
