@@ -20,6 +20,7 @@
     "lint": "eslint src vite.config.ts eslint.config.js",
     "format": "prettier --write .",
     "format:check": "node scripts/check-format.mjs",
+    "docs:check": "node scripts/check-doc-links.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
