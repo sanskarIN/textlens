@@ -5,6 +5,7 @@ import { en } from "./i18n/en";
 import { comparisonMetrics, keywordDeltas, type ComparisonUnit } from "./lib/comparison";
 import { formatBytes, formatDuration, formatInteger } from "./lib/format";
 import { encodingSummary, escapeHtml, metricRows } from "./lib/presentation";
+import { filterQuickActions, type SearchableAction } from "./lib/quickActions";
 import { defaultSettings, loadSettings, parseSettings, saveSettings } from "./state";
 import type {
   AnalysisOptions,
@@ -26,6 +27,7 @@ app.innerHTML = `
       <span><strong>${en.appName}</strong><small>${en.tagline}</small></span>
     </a>
     <nav aria-label="Application">
+      <button id="quickActionsButton" class="ghost" type="button" aria-keyshortcuts="Control+Shift+P Meta+Shift+P">${en.quickActions}</button>
       <button id="settingsButton" class="ghost" type="button">${en.settings}</button>
       <button id="aboutButton" class="ghost" type="button">${en.about}</button>
     </nav>
@@ -182,6 +184,18 @@ app.innerHTML = `
     <h3>${en.compareKeywords}</h3>
     <div id="comparisonKeywords" class="compare-keywords"></div>
   </div>
+</dialog>
+
+<dialog id="quickActionsDialog" class="palette-dialog">
+  <div>
+    <div class="heading">
+      <div><p class="eyebrow">${en.quickActionsEyebrow}</p><h2>${en.quickActionsHeading}</h2></div>
+      <button id="closeQuickActionsButton" class="ghost" type="button">${en.close}</button>
+    </div>
+    <label class="sr-only" for="quickActionsSearch">${en.quickActionsSearch}</label>
+    <input id="quickActionsSearch" class="palette-search" type="search" autocomplete="off" spellcheck="false" placeholder="${en.quickActionsPlaceholder}">
+    <div id="quickActionsList" class="palette-list"></div>
+  </div>
 </dialog>`;
 
 function get<T extends HTMLElement>(id: string): T {
@@ -203,6 +217,9 @@ const compareButton = get<HTMLButtonElement>("compareReportButton");
 const settingsDialog = get<HTMLDialogElement>("settingsDialog");
 const aboutDialog = get<HTMLDialogElement>("aboutDialog");
 const compareDialog = get<HTMLDialogElement>("compareDialog");
+const quickActionsDialog = get<HTMLDialogElement>("quickActionsDialog");
+const quickActionsSearch = get<HTMLInputElement>("quickActionsSearch");
+const quickActionsList = get<HTMLElement>("quickActionsList");
 const comparisonMeta = get<HTMLElement>("comparisonMeta");
 const comparisonMetricsBody = get<HTMLTableSectionElement>("comparisonMetricsBody");
 const comparisonKeywords = get<HTMLElement>("comparisonKeywords");
@@ -212,6 +229,32 @@ let report: AnalysisReport | null = null;
 let ngram: 2 | 3 = 2;
 let timer: number | undefined;
 let sequence = 0;
+
+type QuickActionId =
+  | "focus-editor"
+  | "open-file"
+  | "clear"
+  | "export-json"
+  | "export-markdown"
+  | "compare"
+  | "settings"
+  | "about";
+
+interface QuickActionDefinition extends SearchableAction {
+  id: QuickActionId;
+  requiresReport: boolean;
+}
+
+const quickActions: QuickActionDefinition[] = [
+  { id: "focus-editor", label: en.actionFocusEditor, keywords: ["type", "paste", "text"], requiresReport: false },
+  { id: "open-file", label: en.actionOpenFile, keywords: ["document", "local", "import"], requiresReport: false },
+  { id: "clear", label: en.actionClear, keywords: ["reset", "empty", "editor"], requiresReport: false },
+  { id: "export-json", label: en.actionExportJson, keywords: ["save", "report", "json"], requiresReport: true },
+  { id: "export-markdown", label: en.actionExportMarkdown, keywords: ["save", "report", "markdown", "md"], requiresReport: true },
+  { id: "compare", label: en.actionCompare, keywords: ["diff", "baseline", "report"], requiresReport: true },
+  { id: "settings", label: en.actionSettings, keywords: ["preferences", "theme", "keywords"], requiresReport: false },
+  { id: "about", label: en.actionAbout, keywords: ["license", "support", "version"], requiresReport: false },
+];
 
 const opts = (): AnalysisOptions => ({
   readingWpm: settings.readingWpm,
@@ -430,6 +473,61 @@ function formatSignedInteger(value: number): string {
   return `${value > 0 ? "+" : "−"}${formatInteger(Math.abs(value))}`;
 }
 
+function renderQuickActions(query = ""): void {
+  const matches = filterQuickActions(quickActions, query);
+  if (!matches.length) {
+    quickActionsList.className = "palette-list empty";
+    quickActionsList.textContent = en.quickActionsEmpty;
+    return;
+  }
+
+  quickActionsList.className = "palette-list";
+  quickActionsList.innerHTML = matches
+    .map((action) => {
+      const disabled = action.requiresReport && !report;
+      return `<button type="button" data-quick-action="${action.id}"${disabled ? " disabled" : ""}><span>${escapeHtml(action.label)}</span>${disabled ? `<small>${en.nothingToShow}</small>` : ""}</button>`;
+    })
+    .join("");
+}
+
+function openQuickActions(): void {
+  quickActionsSearch.value = "";
+  renderQuickActions();
+  quickActionsDialog.showModal();
+  window.requestAnimationFrame(() => quickActionsSearch.focus());
+}
+
+function runQuickAction(id: QuickActionId): void {
+  quickActionsDialog.close();
+  switch (id) {
+    case "focus-editor":
+      input.focus();
+      break;
+    case "open-file":
+      void openFile();
+      break;
+    case "clear":
+      clear();
+      break;
+    case "export-json":
+      void exportReport("json");
+      break;
+    case "export-markdown":
+      void exportReport("markdown");
+      break;
+    case "compare":
+      void compareReport();
+      break;
+    case "settings":
+      syncSettings();
+      settingsDialog.showModal();
+      break;
+    case "about":
+      aboutDialog.showModal();
+      break;
+  }
+}
+
 async function backupSettings(): Promise<void> {
   try {
     const path = await save({
@@ -513,6 +611,7 @@ input.addEventListener("input", schedule);
 exportJson.onclick = () => void exportReport("json");
 exportMd.onclick = () => void exportReport("markdown");
 compareButton.onclick = () => void compareReport();
+get<HTMLButtonElement>("quickActionsButton").onclick = openQuickActions;
 get<HTMLButtonElement>("settingsButton").onclick = () => {
   syncSettings();
   settingsDialog.showModal();
@@ -520,6 +619,7 @@ get<HTMLButtonElement>("settingsButton").onclick = () => {
 get<HTMLButtonElement>("aboutButton").onclick = () => aboutDialog.showModal();
 get<HTMLButtonElement>("closeAboutButton").onclick = () => aboutDialog.close();
 get<HTMLButtonElement>("closeCompareButton").onclick = () => compareDialog.close();
+get<HTMLButtonElement>("closeQuickActionsButton").onclick = () => quickActionsDialog.close();
 get<HTMLButtonElement>("dismissOnboarding").onclick = () => {
   localStorage.setItem("textlens.onboarding.dismissed", "1");
   get("onboarding").hidden = true;
@@ -535,6 +635,13 @@ get<HTMLButtonElement>("resetSettingsButton").onclick = () => {
 get<HTMLButtonElement>("backupSettingsButton").onclick = () => void backupSettings();
 get<HTMLButtonElement>("restoreSettingsButton").onclick = () => void restoreSettings();
 get<HTMLFormElement>("settingsForm").addEventListener("submit", saveSettingsForm);
+quickActionsSearch.addEventListener("input", () => renderQuickActions(quickActionsSearch.value));
+quickActionsList.addEventListener("click", (event) => {
+  const button = (event.target as Element).closest<HTMLButtonElement>("[data-quick-action]");
+  if (!button || button.disabled) return;
+  const id = button.dataset.quickAction as QuickActionId | undefined;
+  if (id) runQuickAction(id);
+});
 
 document.querySelectorAll<HTMLButtonElement>("[data-ngram]").forEach((button) => {
   button.onclick = () => {
@@ -556,7 +663,10 @@ document.querySelectorAll<HTMLButtonElement>("[data-external]").forEach((button)
 window.addEventListener("keydown", (event) => {
   if (!(event.ctrlKey || event.metaKey)) return;
   const key = event.key.toLowerCase();
-  if (key === "o") {
+  if (key === "p" && event.shiftKey) {
+    event.preventDefault();
+    if (!quickActionsDialog.open) openQuickActions();
+  } else if (key === "o") {
     event.preventDefault();
     void openFile();
   } else if (key === "e" && report) {
