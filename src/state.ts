@@ -1,6 +1,8 @@
 import type { AppSettings, ThemePreference } from "./types";
 
 const STORAGE_KEY = "textlens.settings.v1";
+const MAX_KEYWORD_EXCLUSIONS = 100;
+const MAX_KEYWORD_EXCLUSION_CHARACTERS = 64;
 
 export const defaultSettings: AppSettings = {
   theme: "system",
@@ -8,17 +10,19 @@ export const defaultSettings: AppSettings = {
   speakingWpm: 150,
   topKeywords: 12,
   topNgrams: 10,
+  keywordExclusions: [],
   reducedMotion: false,
 };
 
 export function parseSettings(value: unknown): AppSettings {
-  if (!isRecord(value)) return { ...defaultSettings };
+  if (!isRecord(value)) return { ...defaultSettings, keywordExclusions: [] };
   return {
     theme: validTheme(value.theme),
     readingWpm: validRate(value.readingWpm, defaultSettings.readingWpm),
     speakingWpm: validRate(value.speakingWpm, defaultSettings.speakingWpm),
     topKeywords: validLimit(value.topKeywords, defaultSettings.topKeywords),
     topNgrams: validLimit(value.topNgrams, defaultSettings.topNgrams),
+    keywordExclusions: validKeywordExclusions(value.keywordExclusions),
     reducedMotion: typeof value.reducedMotion === "boolean" ? value.reducedMotion : defaultSettings.reducedMotion,
   };
 }
@@ -26,9 +30,9 @@ export function parseSettings(value: unknown): AppSettings {
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? parseSettings(JSON.parse(raw) as unknown) : { ...defaultSettings };
+    return raw ? parseSettings(JSON.parse(raw) as unknown) : { ...defaultSettings, keywordExclusions: [] };
   } catch {
-    return { ...defaultSettings };
+    return { ...defaultSettings, keywordExclusions: [] };
   }
 }
 
@@ -54,4 +58,23 @@ function validLimit(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 1 && value <= 50
     ? Math.round(value)
     : fallback;
+}
+
+function validKeywordExclusions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    const bounded = [...trimmed].slice(0, MAX_KEYWORD_EXCLUSION_CHARACTERS).join("");
+    const key = bounded.toLocaleLowerCase();
+    if (!bounded || seen.has(key)) continue;
+    seen.add(key);
+    result.push(bounded);
+    if (result.length >= MAX_KEYWORD_EXCLUSIONS) break;
+  }
+  return result;
 }
