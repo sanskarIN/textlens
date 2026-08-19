@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
-const SETTINGS_BACKUP_VERSION: u8 = 1;
+const CURRENT_SETTINGS_BACKUP_VERSION: u8 = 2;
 const MAX_SETTINGS_BACKUP_BYTES: u64 = 64 * 1024;
 const MAX_KEYWORD_EXCLUSIONS: usize = 100;
 const MAX_KEYWORD_EXCLUSION_CHARACTERS: usize = 64;
@@ -54,7 +54,7 @@ struct SettingsBackup {
 pub fn write(path: &Path, settings: SettingsData) -> Result<(), AppError> {
     validate_destination(path)?;
     let backup = SettingsBackup {
-        version: SETTINGS_BACKUP_VERSION,
+        version: CURRENT_SETTINGS_BACKUP_VERSION,
         settings: settings.validate()?,
     };
     let content = serde_json::to_vec_pretty(&backup).map_err(AppError::Serialize)?;
@@ -76,7 +76,7 @@ pub fn read(path: &Path) -> Result<SettingsData, AppError> {
     let bytes = fs::read(path).map_err(AppError::ReadSettings)?;
     let backup: SettingsBackup =
         serde_json::from_slice(&bytes).map_err(AppError::InvalidSettings)?;
-    if backup.version != SETTINGS_BACKUP_VERSION {
+    if backup.version == 0 || backup.version > CURRENT_SETTINGS_BACKUP_VERSION {
         return Err(AppError::InvalidSettingsData);
     }
     backup.settings.validate()
@@ -147,11 +147,13 @@ mod tests {
     }
 
     #[test]
-    fn backup_round_trip() {
+    fn backup_round_trip_uses_current_schema() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
         let expected = sample_settings();
         write(&path, expected.clone()).unwrap();
+        let raw = fs::read_to_string(&path).unwrap();
+        assert!(raw.contains("\"version\": 2"));
         assert_eq!(read(&path).unwrap(), expected);
     }
 
@@ -167,6 +169,18 @@ mod tests {
         let restored = read(&path).unwrap();
         assert!(restored.keyword_exclusions.is_empty());
         assert!(!restored.recent_files_enabled);
+    }
+
+    #[test]
+    fn rejects_future_backup_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(
+            &path,
+            r#"{"version":3,"settings":{"theme":"system","readingWpm":238,"speakingWpm":150,"topKeywords":12,"topNgrams":10,"keywordExclusions":[],"reducedMotion":false,"recentFilesEnabled":false}}"#,
+        )
+        .unwrap();
+        assert!(matches!(read(&path), Err(AppError::InvalidSettingsData)));
     }
 
     #[test]
@@ -195,7 +209,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         fs::write(
             &path,
-            r#"{"version":1,"settings":{"theme":"system","readingWpm":238,"speakingWpm":150,"topKeywords":12,"topNgrams":10,"reducedMotion":false},"unexpected":true}"#,
+            r#"{"version":2,"settings":{"theme":"system","readingWpm":238,"speakingWpm":150,"topKeywords":12,"topNgrams":10,"keywordExclusions":[],"reducedMotion":false,"recentFilesEnabled":false},"unexpected":true}"#,
         )
         .unwrap();
         assert!(read(&path).is_err());
