@@ -14,10 +14,12 @@ function readCargoPackageVersion(source) {
   return version;
 }
 
-const [packageSource, tauriSource, cargoSource] = await Promise.all([
+const [packageSource, tauriSource, cargoSource, readmeSource, changelogSource] = await Promise.all([
   readText("package.json"),
   readText("src-tauri/tauri.conf.json"),
   readText("src-tauri/Cargo.toml"),
+  readText("README.md"),
+  readText("CHANGELOG.md"),
 ]);
 
 const packageVersion = JSON.parse(packageSource).version;
@@ -44,4 +46,25 @@ if (mismatches.length) {
   process.exit(1);
 }
 
-console.log(`Version metadata is synchronized at ${expected}.`);
+const documentationErrors = [];
+if (!readmeSource.includes(`Current source version: ${expected}`)) {
+  documentationErrors.push(`README.md does not identify the current source version as ${expected}.`);
+}
+if (!changelogSource.includes(`## [${expected}]`)) {
+  documentationErrors.push(`CHANGELOG.md does not contain a ${expected} release section.`);
+}
+
+const releaseNotesPath = `docs/releases/v${expected}.md`;
+try {
+  await readText(releaseNotesPath);
+} catch {
+  documentationErrors.push(`${releaseNotesPath} is missing or unreadable.`);
+}
+
+if (documentationErrors.length) {
+  console.error(`Release documentation is out of sync with application version ${expected}:`);
+  for (const error of documentationErrors) console.error(`- ${error}`);
+  process.exit(1);
+}
+
+console.log(`Version metadata and release documentation are synchronized at ${expected}.`);
