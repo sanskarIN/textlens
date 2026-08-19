@@ -4,6 +4,10 @@ All notable TextLens changes are documented here.
 
 ## [Unreleased]
 
+No user-visible changes have been added after the 2.0.12 source milestone yet.
+
+## [2.0.12] - 2026-08-19
+
 ### Added
 
 - Unique-word and longest-word metrics in analysis results and exported reports.
@@ -27,19 +31,22 @@ All notable TextLens changes are documented here.
 - Deterministic malformed UTF-8, UTF-16 boundary, and Windows-1252 byte fixtures wired into Rust decoding tests.
 - Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, analysis preset validation/persistence behavior, Markdown export-option parsing, and failure-safe storage helpers.
 - Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, deterministic encoding-boundary fixtures, custom Markdown rendering, and private-path error redaction.
+- Stable report-schema compatibility contract in `docs/report-schema.md`.
+- Regression guard freezing `CURRENT_REPORT_VERSION` at schema v2 unless an explicit compatibility decision is made.
 
 ### Changed
 
-- New analyses now emit report schema v2 so vocabulary metrics have an explicit compatibility boundary.
+- Application version is synchronized to 2.0.12 across npm, Cargo, and Tauri metadata.
+- New analyses continue to emit report schema v2; application version 2.0.12 does not change report-schema semantics.
 - Legacy schema-v1 report JSON remains importable; vocabulary deltas unavailable in v1 are omitted from comparisons instead of being fabricated.
-- Encoding diagnostics now flag undefined Windows-1252 bytes and replace them safely.
-- The desktop workspace now surfaces vocabulary metrics alongside the existing live counts.
+- Encoding diagnostics flag undefined Windows-1252 bytes and replace them safely.
+- The desktop workspace surfaces vocabulary metrics alongside the existing live counts.
 - Settings backups remain schema-v1 compatible while defaulting newer preferences for older backups.
 - Analysis-option validation is shared by ordinary settings and local presets so both paths enforce the same bounds.
-- Existing Markdown export entry points now open the same section picker; JSON export remains a complete canonical report.
+- Existing Markdown export entry points open the same section picker; JSON export remains a complete canonical report.
 - The About dialog resolves the packaged application version at runtime instead of relying on a copied release number as its source of truth.
-- Settings, recent-file metadata, and analysis presets now share exception-contained storage helpers instead of calling WebView persistence independently.
-- Frontend boot now flows through a single startup module so storage fallback and optional UI modules initialize in a deterministic order.
+- Settings, recent-file metadata, and analysis presets share exception-contained storage helpers instead of calling WebView persistence independently.
+- Frontend boot flows through a single startup module so storage fallback and optional UI modules initialize in a deterministic order.
 
 ### Security
 
