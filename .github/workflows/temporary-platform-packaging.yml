@@ -1,0 +1,60 @@
+name: Temporary platform packaging verification
+
+on:
+  push:
+    branches:
+      - docs/update-project-handoff
+    paths:
+      - .github/workflows/temporary-platform-packaging.yml
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies from lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify application version metadata
+        run: npm run version:check
+
+      - name: Build Tauri bundles
+        run: npm run tauri:build
+
+      - name: Require packaged bundle output
+        shell: bash
+        run: |
+          find src-tauri/target/release/bundle -type f -print | tee bundle-files.txt
+          test -s bundle-files.txt
+
+      - name: Upload verification bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: textlens-${{ matrix.platform }}-verification
+          path: src-tauri/target/release/bundle/**/*
+          if-no-files-found: error
+          retention-days: 1
