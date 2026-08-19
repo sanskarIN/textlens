@@ -1,7 +1,9 @@
 use std::{fs, path::Path};
 
 use crate::{
-    domain::models::{AnalysisReport, FrequencyItem, SourceKind},
+    domain::models::{
+        AnalysisReport, FrequencyItem, SourceKind, CURRENT_REPORT_VERSION,
+    },
     error::AppError,
 };
 
@@ -36,14 +38,16 @@ pub fn read_report(path: &Path) -> Result<AnalysisReport, AppError> {
 }
 
 fn validate_report(report: &AnalysisReport) -> Result<(), AppError> {
-    if report.version != 1 {
+    if report.version == 0 || report.version > CURRENT_REPORT_VERSION {
         return Err(AppError::UnsupportedReportVersion(report.version));
     }
 
     if report.stats.unique_words > report.stats.words
         || report.stats.graphemes > report.stats.characters
-        || (report.stats.words == 0 && report.stats.max_word_characters != 0)
-        || (report.stats.words > 0 && report.stats.max_word_characters == 0)
+        || (report.version >= 2
+            && ((report.stats.words == 0 && report.stats.max_word_characters != 0)
+                || (report.stats.words > 0
+                    && (report.stats.unique_words == 0 || report.stats.max_word_characters == 0))))
     {
         return Err(AppError::InvalidReportData);
     }
@@ -153,6 +157,7 @@ fn render_markdown(r: &AnalysisReport) -> String {
         "# TextLens Analysis Report\n\n> Generated locally by TextLens. Document content is not included in this report.\n\n",
     );
 
+    output.push_str(&format!("- **Report schema:** v{}\n", r.version));
     if let Some(name) = &r.source.display_name {
         output.push_str(&format!("- **Source:** `{}`\n", escape_inline(name)));
     }
@@ -238,9 +243,10 @@ mod tests {
     }
 
     #[test]
-    fn markdown_includes_vocabulary_metrics() {
+    fn markdown_includes_vocabulary_metrics_and_schema() {
         let report = analyze_text("alpha beta alpha", AnalysisOptions::default());
         let markdown = render_markdown(&report);
+        assert!(markdown.contains("Report schema:** v2"));
         assert!(markdown.contains("| Unique words | 2 |"));
         assert!(markdown.contains("| Longest word (characters) | 5 |"));
     }
@@ -270,15 +276,33 @@ mod tests {
     }
 
     #[test]
+    fn reads_legacy_version_one_report_without_vocabulary_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("legacy-report.json");
+        let report = analyze_text("alpha beta alpha", AnalysisOptions::default());
+        let mut value = serde_json::to_value(report).unwrap();
+        value["version"] = serde_json::Value::from(1);
+        let stats = value["stats"].as_object_mut().unwrap();
+        stats.remove("uniqueWords");
+        stats.remove("maxWordCharacters");
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+
+        let restored = read_report(&path).unwrap();
+        assert_eq!(restored.version, 1);
+        assert_eq!(restored.stats.unique_words, 0);
+        assert_eq!(restored.stats.max_word_characters, 0);
+    }
+
+    #[test]
     fn rejects_unsupported_report_version() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("report.json");
         let mut report = analyze_text("hello", AnalysisOptions::default());
-        report.version = 2;
+        report.version = CURRENT_REPORT_VERSION + 1;
         fs::write(&path, serde_json::to_vec(&report).unwrap()).unwrap();
         assert!(matches!(
             read_report(&path),
-            Err(AppError::UnsupportedReportVersion(2))
+            Err(AppError::UnsupportedReportVersion(_))
         ));
     }
 
