@@ -15,10 +15,11 @@ All notable TextLens changes are documented here.
 - Searchable keyboard-first Quick actions palette for common workspace operations.
 - Opt-in recent-file metadata history storing only display filename, size, and opened timestamp, capped at 10 entries.
 - Per-entry removal and clear-all controls for recent-file metadata; disabling the setting clears the history.
-- Privacy-safe Markdown export customization for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
+- Reusable local analysis presets for reading/speaking rates, result limits, and keyword exclusions, bounded to 12 device-local presets.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
-- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, and Markdown export-option parsing.
-- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, and custom Markdown rendering.
+- Deterministic malformed UTF-8, UTF-16 boundary, and Windows-1252 byte fixtures wired into Rust decoding tests.
+- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, and analysis preset validation/persistence behavior.
+- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, and deterministic encoding-boundary fixtures.
 
 ### Changed
 
@@ -27,14 +28,14 @@ All notable TextLens changes are documented here.
 - Encoding diagnostics now flag undefined Windows-1252 bytes and replace them safely.
 - The desktop workspace now surfaces vocabulary metrics alongside the existing live counts.
 - Settings backups remain schema-v1 compatible while defaulting newer preferences for older backups.
-- Existing Markdown export entry points now open the same section picker; JSON export remains a complete canonical report.
+- Analysis-option validation is shared by ordinary settings and local presets so both paths enforce the same bounds.
 
 ### Security
 
 - Imported report metadata, frequencies, sizes, schema versions, and numeric relationships are validated before presentation.
 - Report comparison operates on aggregate exported report data and never attempts to reconstruct source document text.
 - Recent-file history is disabled by default, never stores full paths, rejects path-like display names, and is erased when the preference is disabled.
-- Markdown customization can omit source metadata, and raw source document text is never offered as an export option.
+- Analysis presets never contain source text, file paths, reports, recent-file entries, or unrelated privacy/appearance settings; persisted preset values are bounded and validated before use.
 
 ## [0.1.0] - 2026-08-19
 

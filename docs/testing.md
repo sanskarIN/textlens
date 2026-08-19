@@ -11,11 +11,12 @@ Pure frontend helpers have unit tests. The UI delegates text analysis and valida
 Current frontend helper coverage includes:
 
 - settings parsing and bounds, including keyword exclusions and privacy-sensitive opt-ins;
+- shared analysis-option parsing used by settings and reusable presets;
+- analysis-preset name/collection bounds, case-insensitive deduplication, replacement ordering, application semantics, malformed storage, and write-failure handling;
 - numeric/byte/duration formatting;
 - HTML-safe presentation helpers;
 - report metric and top-keyword comparison deltas;
 - legacy-report comparison behavior for vocabulary metrics unavailable in schema v1;
-- Markdown export-option defaults, explicit section choices, and malformed-field fallback behavior;
 - Quick actions query filtering and multi-term matching;
 - recent-file metadata parsing, path rejection, numeric/timestamp validation, deduplication, and ten-entry bounds.
 
@@ -26,13 +27,13 @@ cd src-tauri
 cargo test --lib
 ```
 
-Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, configurable Markdown section rendering, canonical JSON export behavior, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
-
-Report-export tests verify that Markdown customization can omit source metadata/sections without exposing source text, while JSON remains a complete round-trippable report even when Markdown options are supplied.
+Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
 
 Report-import tests cover current-schema round trips, schema-v1 compatibility, unsupported future versions, inconsistent metrics, and oversized inputs.
 
 Settings tests cover current backups, legacy backups without newer preferences, invalid exclusions, unknown fields, out-of-range values, and atomic replacement behavior.
+
+Deterministic decoding fixtures cover malformed UTF-8, undefined Windows-1252 bytes, and an odd UTF-16LE boundary so replacement/error behavior does not depend on platform text files.
 
 ## Integration/property tests
 
@@ -42,7 +43,7 @@ cargo test --all-targets
 
 Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
 
-Checked-in synthetic fixtures under `src-tauri/tests/fixtures/` provide stable multilingual and difficult-punctuation inputs. Fixtures must remain fictional and must never contain private documents.
+Checked-in synthetic fixtures under `src-tauri/tests/fixtures/` provide stable multilingual, difficult-punctuation, and byte-boundary inputs. Fixtures must remain fictional and must never contain private documents.
 
 ## Static checks
 
@@ -77,16 +78,16 @@ Before a release candidate:
 2. Paste Hindi, Arabic, CJK, accents, emoji, and combining marks.
 3. Confirm unique-word and longest-word metrics with repeated and multilingual terms.
 4. Add keyword exclusions with mixed case, commas, blank entries, duplicates, and line breaks; confirm only the keyword summary changes while word counts and n-grams remain stable.
-5. Back up settings containing keyword exclusions, clear/change them, restore the backup, and confirm all values return.
-6. Open LF, CRLF, CR, and mixed-ending files.
-7. Open UTF-8/BOM and UTF-16LE/BE BOM fixtures.
-8. Test malformed UTF-8 and undefined Windows-1252 bytes and confirm the encoding warning appears.
-9. Force streaming with `TEXTLENS_LARGE_FILE_THRESHOLD_MIB=1` and a synthetic >1 MiB file.
-10. Export JSON and verify it remains a complete schema-v2 report with source document content absent.
-11. Open Markdown export from the visible button, Quick actions, and `Ctrl/Cmd + E`; verify all three open the same section picker.
-12. Export Markdown with every section selected and verify the previous full aggregate report content is present while source text is absent.
-13. Disable source metadata and selected aggregate sections, export Markdown, and verify those sections/filename metadata are absent while the schema marker and TextLens attribution remain.
-14. Disable every optional Markdown section and verify export still succeeds without including source text.
+5. Save an analysis preset containing non-default reading/speaking rates, result limits, and keyword exclusions; close/reopen Settings and confirm it remains available locally.
+6. Save another preset with the same name using different capitalization and confirm it replaces the existing preset rather than creating a duplicate.
+7. Apply a preset and confirm the existing Settings save path updates the active pasted text or file analysis while theme, reduced-motion choice, and recent-file-history opt-in remain unchanged.
+8. Delete a preset and confirm it disappears after reopening Settings. Verify preset storage contains no source text, file path, report, recent-file entry, or unrelated privacy/appearance setting.
+9. Back up settings containing keyword exclusions, clear/change them, restore the backup, and confirm all backed-up values return. Confirm device-local analysis presets are not included in the current settings backup schema.
+10. Open LF, CRLF, CR, and mixed-ending files.
+11. Open UTF-8/BOM and UTF-16LE/BE BOM fixtures.
+12. Test malformed UTF-8 and undefined Windows-1252 bytes and confirm the encoding warning appears.
+13. Force streaming with `TEXTLENS_LARGE_FILE_THRESHOLD_MIB=1` and a synthetic >1 MiB file.
+14. Export JSON/Markdown and verify source document content is absent.
 15. Confirm a newly exported JSON report uses schema v2.
 16. Compare the current analysis with a valid exported schema-v2 JSON report and verify metric/keyword deltas.
 17. Compare against a compatible schema-v1 report and confirm unavailable vocabulary deltas are omitted.
@@ -101,7 +102,7 @@ Before a release candidate:
 26. Disable recent-file metadata and confirm stored history is deleted immediately. Restore defaults and verify the same deletion behavior.
 27. Back up settings with recent metadata enabled and verify the backup stores only the boolean preference, not recent-file entries.
 28. Test light/dark/system themes.
-29. Navigate all controls keyboard-only, including dialogs, the Markdown section picker, Quick actions, and recent-history controls.
+29. Navigate all controls keyboard-only, including dialogs, Quick actions, analysis preset controls, and recent-history controls.
 30. Enable reduced motion.
 31. Test narrow window widths and horizontal comparison-table scrolling.
 
