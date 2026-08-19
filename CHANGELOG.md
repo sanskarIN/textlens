@@ -17,6 +17,7 @@ All notable TextLens changes are documented here.
 - Per-entry removal and clear-all controls for recent-file metadata; disabling the setting clears the history.
 - Reusable local analysis presets for reading/speaking rates, result limits, and keyword exclusions, bounded to 12 device-local presets.
 - Privacy-safe Markdown export customization for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
+- Dependency-free release version consistency check covering npm, Cargo, and Tauri metadata, enforced in CI.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
 - Deterministic malformed UTF-8, UTF-16 boundary, and Windows-1252 byte fixtures wired into Rust decoding tests.
 - Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, analysis preset validation/persistence behavior, and Markdown export-option parsing.
@@ -31,6 +32,7 @@ All notable TextLens changes are documented here.
 - Settings backups remain schema-v1 compatible while defaulting newer preferences for older backups.
 - Analysis-option validation is shared by ordinary settings and local presets so both paths enforce the same bounds.
 - Existing Markdown export entry points now open the same section picker; JSON export remains a complete canonical report.
+- The About dialog resolves the packaged application version at runtime instead of relying on a copied release number as its source of truth.
 
 ### Security
 

@@ -10,6 +10,14 @@ Keep these aligned:
 - About/version UI behavior
 - `CHANGELOG.md`
 
+Run the dependency-free metadata gate after every version bump:
+
+```bash
+npm run version:check
+```
+
+The About dialog resolves the packaged application version at runtime through Tauri metadata instead of treating a copied UI literal as the release source of truth.
+
 ## Preparation
 
 1. Update changelog, roadmap, documentation, and `what_changed.md`.
@@ -17,6 +25,7 @@ Keep these aligned:
 3. Run the complete quality suite:
 
    ```bash
+   npm run version:check
    npm run check
    npm run lint
    npm run format:check
@@ -73,7 +82,7 @@ For every supported platform artifact:
 8. Export JSON and Markdown reports.
 9. Compare against a saved JSON report.
 10. Exercise Quick actions and all documented keyboard shortcuts.
-11. Inspect About/version/contact/funding links.
+11. Confirm the About dialog displays the packaged application version and inspect contact/funding links.
 12. Review focus, reduced motion, scaling, and screen-reader behavior.
 13. Uninstall cleanly and confirm no unexpected startup/service components remain.
 
