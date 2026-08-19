@@ -5,6 +5,7 @@ export interface AnalysisOptions {
   speakingWpm: number;
   topKeywords: number;
   topNgrams: number;
+  keywordExclusions: string[];
 }
 
 export interface SourceInfo {
@@ -78,5 +79,6 @@ export interface AppSettings {
   speakingWpm: number;
   topKeywords: number;
   topNgrams: number;
+  keywordExclusions: string[];
   reducedMotion: boolean;
 }
