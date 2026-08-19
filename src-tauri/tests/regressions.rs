@@ -1,4 +1,7 @@
-use textlens_lib::domain::{analyzer::analyze_text, models::AnalysisOptions};
+use textlens_lib::domain::{
+    analyzer::analyze_text,
+    models::{AnalysisOptions, CURRENT_REPORT_VERSION},
+};
 
 #[test]
 fn trailing_newline_counts_final_empty_line() {
@@ -35,4 +38,21 @@ fn case_folding_keeps_unique_word_count_stable() {
     let report = analyze_text("TextLens textlens TEXTLENS", AnalysisOptions::default());
     assert_eq!(report.stats.words, 3);
     assert_eq!(report.stats.unique_words, 1);
+}
+
+#[test]
+fn checked_in_punctuation_fixture_remains_stable() {
+    let report = analyze_text(
+        include_str!("fixtures/punctuation.txt"),
+        AnalysisOptions::default(),
+    );
+    assert_eq!(report.version, CURRENT_REPORT_VERSION);
+    assert_eq!(report.stats.sentences, 5);
+    let terms = report
+        .keywords
+        .iter()
+        .map(|item| item.text.as_str())
+        .collect::<Vec<_>>();
+    assert!(terms.contains(&"don't"));
+    assert!(terms.contains(&"don’t"));
 }
