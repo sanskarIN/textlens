@@ -54,6 +54,10 @@ export const en = {
   speakingSpeed: "Speaking speed (words/min)",
   topKeywords: "Top keywords",
   topNgrams: "Top n-grams",
+  keywordExclusions: "Keyword exclusions",
+  keywordExclusionsHint:
+    "Comma- or line-separated words to hide from the keyword list. Counts and n-grams are unchanged.",
+  keywordExclusionsPlaceholder: "the, and, or",
   reduceMotion: "Reduce non-essential motion",
   privacyAndData: "Privacy & data",
   privacySettingsBody:
