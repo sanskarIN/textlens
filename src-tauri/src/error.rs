@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -9,6 +10,14 @@ pub enum AppError {
     ReadFile(#[source] std::io::Error),
     #[error("The report could not be written.")]
     WriteReport(#[source] std::io::Error),
+    #[error("The settings backup could not be written.")]
+    WriteSettings(#[source] std::io::Error),
+    #[error("The settings backup could not be read.")]
+    ReadSettings(#[source] std::io::Error),
+    #[error("The settings backup is larger than the supported limit.")]
+    SettingsTooLarge,
+    #[error("The settings backup is not valid TextLens settings JSON.")]
+    InvalidSettings(#[source] serde_json::Error),
     #[error("The destination must have a parent directory.")]
     InvalidDestination,
     #[error("The destination directory does not exist: {0}")]
