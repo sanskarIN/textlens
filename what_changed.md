@@ -1,93 +1,168 @@
-# TextLens — Work Handoff
+# TextLens — Final Work Handoff
 
 ## Current milestone
 
-Phase 4 → Phase 5 reliability, privacy hardening, local power-user workflows, documentation, and release preparation — 2026-08-19.
+Final source-owned reliability, privacy, release-integrity, documentation, and open-source readiness audit — 2026-08-19.
 
-The repository-owned source implementation for the current milestone is now substantially complete. This continuation did not only update documentation: it completed remaining source-side roadmap features, fixed additional defects discovered during review, preserved granular commit history through merge commits, and strengthened the release process.
+The repository now contains the complete product implementation targeted by the current TextLens specification plus the final source-side hardening performed in this continuation. This handoff deliberately separates implemented source work from release evidence that still requires a real registry/toolchain/desktop environment or external signing credentials.
 
-The remaining work is primarily verification or distribution work that cannot be truthfully declared complete from the current execution environment: clean dependency installation, generated lockfiles, the complete npm/Rust quality suite, packaged Windows/macOS/Linux builds, installer signing/notarization, native accessibility review, branch protection, and real release-candidate screenshots.
+Do not describe unexecuted platform verification, signing, native accessibility checks, or missing dependency lockfiles as completed.
 
 ## Repository state
 
 - Repository: `sanskarIN/textlens`
 - Default branch: `main`
-- Documentation handoff branch for this final pass: `docs/update-project-handoff`
+- Final audit branch: `fix/final-reliability-audit`
 - Visibility: public
 - License: MIT
 - Primary stack: Rust + Tauri 2 + TypeScript + Vite
-- Current application version: `0.1.0`
+- Application version: `0.1.0`
 - Report schema: `2`
 - Settings backup schema: `2`
-- Source specification: `18_textlens_master_prompt.md` supplied in the ChatGPT project context
 - Required visible credit: **Made by the Sanskar**
-- Requested commit email: `sanskarin@outlook.in`
+- Commit identity used by the existing continuation commits: `Sanskar <sanskarin@outlook.in>`
 
-## Pull requests completed in this continuation
+## Final continuation: concrete defects and gaps addressed
 
-### PR #1 — reusable local analysis presets
+### Failure-safe WebView storage
 
-Merged with a normal merge commit rather than squashing, preserving the granular feature history.
+A final review found that optional preference persistence could still become an application availability problem. Direct/local helper calls to WebView `localStorage` can throw when persistence is blocked, unavailable, corrupted, or out of quota.
 
 Implemented:
 
-- shared analysis-option parsing and bounds;
-- reusable `AnalysisPreset` type;
-- bounded local preset storage;
-- case-insensitive preset-name replacement/deduplication;
-- Settings UI to save, apply, and delete presets;
-- local-storage failure handling;
-- DOM-safe user-supplied preset-name rendering;
-- preset application through the existing Settings submit/reanalysis path;
-- privacy documentation and ADR;
-- regression coverage for parsing, persistence, malformed storage, write failures, and application semantics;
-- a follow-up fix for the second-module DOM initialization race.
+- `src/lib/storage.ts` centralizes exception-contained local storage reads, writes, and removals;
+- settings now load through the safe reader and save through a boolean success boundary;
+- recent-file metadata now uses the same safe persistence boundary;
+- analysis presets now use the same storage boundary instead of maintaining an independent try/catch implementation;
+- `src/lib/storage.test.ts` covers normal storage, unavailable storage, and throwing storage implementations;
+- persistent storage is probed before the main UI loads;
+- when persistence is unusable and the WebView permits replacement, TextLens installs a process-local in-memory storage fallback;
+- session fallback preserves analysis usability but does not pretend preferences were permanently persisted;
+- storage fallback never uploads data or creates a remote persistence path.
 
-### PR #2 — privacy-safe Markdown report customization
+### Guarded application startup
 
-Merged with a normal merge commit, preserving the original feature commits plus the explicit synchronization commit used to integrate it after PR #1.
+The frontend previously loaded multiple entry modules directly from `index.html`, so an unexpected initialization exception could leave the desktop window blank.
+
+Implemented:
+
+- new `src/startup.ts` is the single frontend boot entry;
+- storage readiness/fallback is established before legacy UI modules are evaluated;
+- the main UI loads first, followed by presets, runtime-version UI, and manual-update UI;
+- initialization failure is contained by a startup boundary;
+- `src/startup.css` provides a readable recovery view independently of the main application stylesheet;
+- session-only storage mode is communicated through the existing application status region;
+- user-facing startup/fallback messages are externalized in `src/i18n/en.ts`.
+
+### Privacy-preserving update UX
+
+The original product requirements called for an update area in Settings while the privacy model rejects silent networking.
+
+Implemented:
+
+- `src/updates-ui.ts` adds a Settings update section;
+- TextLens performs no background update polling;
+- the official GitHub Releases page opens only after explicit user action;
+- the update behavior therefore does not weaken the offline-first analysis model.
+
+### Release tag integrity
+
+Implemented:
+
+- `scripts/check-release-tag.mjs` verifies that the release ref is exactly `v` plus `package.json` version;
+- `npm run release:tag-check` exposes the check locally;
+- `.github/workflows/release.yml` runs the tag guard before dependency installation/platform packaging;
+- the existing npm/Cargo/Tauri version-sync check still runs before Tauri packaging.
+
+The release-tag helper was locally exercised with:
+
+- matching explicit tag → success;
+- mismatching explicit tag → failure;
+- matching `GITHUB_REF_NAME` → success.
+
+### Release artifact checksums
+
+Implemented dependency-free tooling:
+
+- `scripts/write-release-checksums.mjs` recursively enumerates regular artifact files, sorts them deterministically, hashes each with SHA-256, and writes portable forward-slash manifest paths;
+- `scripts/verify-release-checksums.mjs` verifies exact artifact coverage and every digest;
+- verifier rejects malformed lines, absolute/traversing paths, duplicate manifest paths, missing entries, extra artifact files, and digest mismatches;
+- package scripts expose checksum generation and verification;
+- `docs/release.md` documents the release-manifest workflow.
+
+Local synthetic verification performed in this continuation:
+
+- generated a manifest for two nested synthetic artifacts;
+- verified the unchanged artifact tree successfully;
+- intentionally modified a manifest digest and confirmed verification failed.
+
+No claim is made that final platform release artifacts already exist or have final checksums.
+
+## Earlier continuation pull requests already merged
+
+### PR #1 — reusable local analysis presets
+
+Implemented:
+
+- shared bounded analysis-option parsing;
+- `AnalysisPreset` model;
+- maximum 12 device-local presets;
+- maximum 48 Unicode scalar values per preset name;
+- case-insensitive replacement/deduplication;
+- Settings save/apply/delete UI;
+- DOM-safe preset-name rendering;
+- local persistence failure reporting;
+- preset application through existing settings/reanalysis behavior;
+- regression tests and ADR/privacy/documentation coverage;
+- DOM initialization race fix.
+
+Presets contain only a display name, reading/speaking rates, result limits, and keyword exclusions. They do not contain source text, full paths, reports, recent-file entries, credentials, theme/reduced-motion choices, or the recent-file-history opt-in.
+
+### PR #2 — privacy-safe Markdown customization
 
 Implemented:
 
 - typed Rust `ReportExportOptions`;
-- Markdown-only section controls for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics;
-- canonical complete JSON reports regardless of Markdown preferences;
-- accessible Markdown section-picker dialog;
-- shared picker behavior from the visible export button, Quick actions, and `Ctrl/Cmd + E`;
-- session-only export-selection state;
-- Rust and TypeScript regression coverage;
-- ADR, privacy, README, testing, changelog, and roadmap updates.
+- Markdown section controls for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics;
+- canonical JSON remains complete and schema-valid regardless of Markdown choices;
+- shared accessible picker for visible export, Quick actions, and `Ctrl/Cmd + E`;
+- session-only selection state;
+- frontend and Rust regression coverage;
+- ADR/privacy/testing/README/changelog/roadmap documentation.
 
-### PR #3 — private destination-path redaction
+Raw source text is never an export option.
 
-Merged with a normal merge commit after conflict-safe synchronization against the already-customized report exporter.
-
-Fixed:
-
-- `AppError::MissingDestination` no longer retains a `PathBuf`;
-- report export missing-parent errors no longer echo the local directory path;
-- settings backup export missing-parent errors no longer echo the local directory path;
-- report and settings regression tests verify private paths are absent from rendered errors;
-- the synchronization deliberately retained the newer custom Markdown `report.rs` rather than overwriting it with the older pre-customization branch version;
-- `SECURITY.md` and `CHANGELOG.md` document the boundary.
-
-### PR #4 — runtime/release version consistency
-
-Merged with a normal merge commit, preserving all feature/build/documentation commits.
+### PR #3 — destination-path privacy hardening
 
 Implemented:
 
-- runtime About-version resolution through Tauri application metadata;
-- safe product-name fallback when runtime version metadata is unavailable;
+- missing export destination errors no longer retain `PathBuf` values;
+- report export and settings backup validation no longer echo private parent-directory paths;
+- regression tests verify path absence;
+- security documentation records the disclosure boundary.
+
+### PR #4 — version consistency
+
+Implemented:
+
+- About dialog resolves packaged version from Tauri application metadata;
+- safe fallback if runtime version metadata is unavailable;
 - dependency-free `scripts/check-version-sync.mjs`;
-- version comparison across `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`;
+- npm/Cargo/Tauri metadata consistency validation;
 - `npm run version:check`;
-- an early CI version-consistency gate;
-- release documentation and changelog coverage.
+- CI/release documentation coverage.
+
+### PR #5 — project handoff synchronization
+
+Updated project documentation after the feature/security audit and distinguished targeted checks from unexecuted full clean-build verification.
+
+### PR #6 — branch-protection guidance
+
+Added precise repository-administration guidance for safe `main` protection without falsely claiming unsupported settings changes had been applied through the connector.
 
 ## Core analysis status
 
-Implemented and retained:
+Implemented:
 
 - Unicode-aware word segmentation;
 - word count;
@@ -104,52 +179,45 @@ Implemented and retained:
 - ranked keywords;
 - bigrams;
 - trigrams;
-- local keyword exclusions affecting only keyword summaries;
+- bounded local keyword exclusions affecting keyword summaries only;
 - whitespace counts;
 - blank-line counts;
 - trailing-whitespace-line counts;
 - LF/CRLF/CR and mixed-line-ending diagnostics.
 
-Keyword exclusions intentionally do not redefine the complete token stream used for word/vocabulary counts or n-grams.
+Keyword exclusions intentionally do not redefine the full token stream used for core/vocabulary counts or n-grams.
 
 ## File analysis and encoding status
 
-Implemented and retained:
+Implemented:
 
 - explicit local file selection through Tauri;
-- UTF-8 handling;
-- UTF-8 BOM handling;
+- UTF-8 and UTF-8 BOM handling;
 - UTF-16LE/BE BOM decoding;
-- conservative Windows-1252 fallback;
-- undefined Windows-1252 bytes surfaced as decoding replacements/errors rather than silently treated as ordinary content;
-- large UTF-8/Windows-1252 file streaming above the configurable threshold;
+- conservative labelled Windows-1252 fallback;
+- undefined Windows-1252 bytes surfaced through replacement/error diagnostics;
+- large UTF-8/Windows-1252 streaming above the configured threshold;
 - display filename returned instead of full source path;
-- active selected path retained only transiently in frontend memory when needed to re-run the current file after analysis-setting changes.
+- selected source path retained only transiently in frontend memory when needed to re-run the currently active file after analysis settings change.
 
-Deterministic byte fixtures are wired into Rust tests for:
+Synthetic deterministic fixtures cover multilingual text, punctuation, malformed UTF-8, Windows-1252 edge bytes, and UTF-16 boundary behavior.
 
-- malformed UTF-8;
-- undefined Windows-1252 edge bytes;
-- odd UTF-16LE byte boundaries.
-
-This corrects the stale earlier handoff that had described those `.hex` fixtures as not yet wired.
-
-## Report export/import/comparison status
+## Reports, imports, comparison, and export privacy
 
 ### Canonical JSON
 
-- Current analyses emit report schema v2.
+- New analyses emit report schema v2.
 - JSON export remains a complete canonical `AnalysisReport`.
-- Raw source document text is not exported.
-- Full source paths are not exported.
-- Compatible schema-v1 reports remain importable.
+- Source document text is excluded.
+- Full source paths are excluded.
+- Schema-v1 reports remain importable.
 - Version `0` and unknown future report versions are rejected.
-- Imported JSON is bounded to 512 KiB before parsing.
-- Imported metadata, frequency entries, percentages, schema versions, and basic metric relationships are validated.
+- Imported JSON is bounded before parsing.
+- Imported metadata, frequency entries, sizes, percentages, versions, and key numeric relationships are validated.
 
-### Custom Markdown
+### Markdown
 
-Users can independently include or omit:
+Optional aggregate sections:
 
 - source metadata;
 - core metrics;
@@ -158,224 +226,138 @@ Users can independently include or omit:
 - trigrams;
 - whitespace/line-ending diagnostics.
 
-Important privacy/compatibility rules:
+Raw source text is never offered. Hiding source metadata removes display filename, analysis mode, and encoding. Schema marker and TextLens attribution remain even with all optional sections disabled.
 
-- raw source document text is never an export option;
-- JSON customization is intentionally unsupported because JSON is the machine-readable import/comparison schema;
-- hiding source metadata removes the display filename, analysis mode, and encoding from Markdown;
-- the schema marker and TextLens attribution remain even when all optional Markdown sections are disabled;
-- Markdown picker selections are session-only UI state and are not persisted as a history record.
+### Comparison
 
-### Report comparison
+- current report can be compared locally with saved TextLens JSON;
+- metric deltas and top-keyword count changes are rendered;
+- vocabulary metrics absent from schema v1 are omitted rather than fabricated;
+- comparison does not create a cloud/local document-history database.
 
-- Current analysis can be compared locally with a saved TextLens JSON report.
-- Metric deltas and top-keyword count changes are displayed.
-- Schema-v1 vocabulary metrics that did not exist in the old format are omitted rather than fabricated from default zeros.
-- The baseline report is not turned into a local/cloud history database.
+## Settings, backup, and local metadata
 
-## Settings and preferences status
-
-Implemented and retained:
+Implemented settings:
 
 - system/light/dark theme;
 - reading words/minute;
 - speaking words/minute;
-- top-keyword limit;
-- top-n-gram limit;
-- bounded keyword exclusions;
-- reduced-motion preference;
-- opt-in recent-file-metadata preference.
+- top-keyword and top-n-gram limits;
+- keyword exclusions;
+- reduced motion;
+- opt-in recent-file metadata;
+- manual update section;
+- backup/restore/default controls.
 
-Frontend settings input is runtime-validated rather than blindly trusted.
+Settings backup schema v2:
 
-Settings Close remains an explicit non-submit action, avoiding accidental saves.
-
-Analysis-affecting settings re-run the active pasted text or active selected file so displayed results remain consistent with the current settings.
-
-## Reusable local analysis presets
-
-Implemented in PR #1.
-
-A preset can contain only:
-
-- a display name;
-- reading words/minute;
-- speaking words/minute;
-- top-keyword result limit;
-- top-n-gram result limit;
-- keyword exclusions.
-
-Boundaries:
-
-- maximum 12 presets;
-- maximum 48 Unicode scalar values in a preset name;
-- names deduplicated case-insensitively;
-- replacing an existing name moves the replacement to the front;
-- all persisted analysis values pass through the shared bounded analysis-option parser;
-- user-supplied names are rendered via DOM text nodes;
-- applying a preset cannot silently change theme, reduced-motion choice, or recent-file-history opt-in;
-- presets do not contain source text, full paths, reports, encoding samples, recent-file entries, credentials, or unrelated privacy/appearance preferences;
-- presets are device-local and intentionally not included in settings backup schema v2.
-
-The UI module waits for the application DOM before mounting, preventing the module-order race discovered during review.
-
-## Settings backup/restore status
-
-Current settings backup schema: v2.
-
-Implemented:
-
-- versioned JSON settings backup;
+- versioned JSON;
 - maximum 64 KiB input before parsing;
 - strict field/range validation;
 - bounded keyword exclusions;
-- compatibility with schema-v1 backups;
-- privacy-preserving defaults for preferences added after v1;
-- rejection of version `0`, unsupported future versions, malformed content, and unknown fields;
+- schema-v1 compatibility;
+- rejection of malformed, unsupported, unknown-field, and out-of-range content;
 - temporary-file + rename replacement behavior;
-- generic missing-destination errors that no longer embed private directory paths.
+- generic missing-destination errors without private directory disclosure.
 
-Backups intentionally exclude:
+Backups intentionally exclude source text, source paths, reports, recent-file metadata entries, analysis presets, and credentials.
 
-- analyzed source text;
-- source paths;
-- report data;
-- recent-file metadata entries;
-- analysis preset entries;
-- credentials/identifiers.
-
-## Recent-file metadata status
-
-Optional recent-file metadata history is:
+Recent-file metadata:
 
 - disabled by default;
-- limited to 10 entries;
-- path-free;
-- content-free;
-- removable per entry;
-- clearable in full;
-- erased when the preference is disabled;
-- erased when default settings are restored.
+- maximum 10 entries;
+- display filename/size/opened time only;
+- no full paths;
+- no source content;
+- per-entry removal and clear-all;
+- erased when the preference is disabled/defaults restored when storage is available;
+- path-like display names rejected.
 
-Stored fields are limited to:
+## Desktop UX and accessibility source status
 
-- display filename;
-- analyzed file size;
-- opened timestamp.
+Implemented source/UI behaviors include:
 
-Path-like display names are rejected by the local metadata parser. Two files with the same display filename intentionally collapse to the newest record because directory identity is not retained.
+- first-run onboarding;
+- responsive desktop layout;
+- light/dark/system themes;
+- reduced-motion preference;
+- semantic labels/status regions;
+- focus-visible states;
+- keyboard-first Quick actions;
+- `Ctrl/Cmd + Shift + P` Quick actions;
+- `Ctrl/Cmd + O` file open;
+- `Ctrl/Cmd + E` Markdown export picker when a report exists;
+- `Ctrl/Cmd + K` editor focus;
+- Settings privacy/data area;
+- manual Updates area;
+- About/license/contact/funding/version presentation;
+- externalized English UI strings as the current i18n-ready source boundary;
+- guarded startup recovery.
 
-This history cannot reopen a previous file because TextLens intentionally does not store historical file paths.
+Native screen-reader, scaling, and platform-specific accessibility acceptance still require real target desktops and must not be inferred from source review alone.
 
-## Quick actions and desktop UX status
+## Security/privacy source status
 
-Implemented:
+Implemented boundaries include:
 
-- searchable local Quick actions palette;
-- `Ctrl/Cmd + Shift + P` → Quick actions;
-- `Ctrl/Cmd + O` → open file;
-- `Ctrl/Cmd + E` → Markdown report section picker when a report exists;
-- `Ctrl/Cmd + K` → focus editor;
-- case-insensitive multi-term filtering;
-- report-dependent actions visible but disabled before a report exists;
-- reuse of established application functions rather than duplicate implementations;
-- responsive settings/comparison/recent-files/preset/export layouts;
-- reduced-motion support;
-- light/dark/system theme support.
+- offline document analysis;
+- no account requirement;
+- no analytics SDK;
+- no cloud text API;
+- raw source excluded from report exports;
+- path-free recent metadata;
+- preset data bounded and content/path free;
+- imported report/settings data validated before use;
+- missing destination errors redact private paths;
+- user preset names rendered through text nodes;
+- strict Tauri CSP;
+- structured Rust logging designed to avoid document content/full paths;
+- storage exceptions contained rather than becoming uncaught availability failures;
+- manual update page opening only after explicit action;
+- release checksum verifier rejects unsafe manifest paths.
 
-## Application version consistency
+## Documentation status
 
-A release-maintenance defect discovered during the final audit was that the About dialog contained a copied `0.1.0` literal while the package version also existed in npm, Cargo, and Tauri metadata.
+Repository documentation includes:
 
-The product now resolves the packaged version at runtime for the About dialog. The new dependency-free gate verifies that these release metadata files remain equal:
+- `README.md`
+- `CHANGELOG.md`
+- `ROADMAP.md`
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `SECURITY.md`
+- `PRIVACY.md`
+- `LICENSE`
+- `docs/setup.md`
+- `docs/development.md`
+- `docs/architecture.md`
+- `docs/testing.md`
+- `docs/release.md`
+- `docs/troubleshooting.md`
+- `docs/accessibility.md`
+- `docs/performance.md`
+- `docs/repository-governance.md`
+- `docs/branch-protection.md`
+- architecture decision records, now including failure-safe local storage.
 
-- `package.json`
-- `src-tauri/Cargo.toml`
-- `src-tauri/tauri.conf.json`
+The final reliability/release work is documented in README, changelog, release guide, ADR 0011, and this handoff.
 
-Run:
+## Verification actually performed in this final continuation
 
-```bash
-npm run version:check
-```
+Performed with evidence in the available execution environment:
 
-CI runs this before the other frontend gates.
+- inspected current repository, current `main`, open PRs, source files, workflows, docs, and prior handoff through the connected GitHub integration;
+- confirmed no open repository issues were present at the time of this audit;
+- inspected the old draft lockfile PR and discovered its lockfiles were absent while temporary workflows/stale verification claims remained;
+- created the final reliability branch directly from current `main` rather than merging that inconsistent draft;
+- standalone strict TypeScript compilation of the new storage/startup/manual-update modules against minimal local Tauri/CSS stubs passed;
+- release-tag helper passed matching-tag and `GITHUB_REF_NAME` cases and rejected a mismatched tag;
+- checksum generator/verifier passed a nested synthetic artifact tree and rejected an intentionally corrupted checksum;
+- branch compare after implementation showed the final audit branch cleanly ahead of `main` with no missing base commits.
 
-## Privacy/security hardening completed in this continuation
+## Verification not truthfully completed here
 
-- Local preset data is bounded and treated as untrusted input.
-- Preset names are rendered without injecting user text as HTML.
-- Raw source text remains absent from reports.
-- Markdown customization never provides an option to include source text.
-- Canonical JSON import validation remains strict.
-- Recent-file metadata remains opt-in and path-free.
-- Missing report/settings export destination errors no longer retain or echo the private parent directory.
-- Regression tests were added for the path-disclosure defect.
-- Security guidance now requires regression coverage for validation/disclosure/escaping defects.
-
-## Tests and fixture coverage currently present
-
-### Frontend helper coverage
-
-- settings parsing and ranges;
-- shared analysis-option parsing;
-- keyword-exclusion normalization/bounds;
-- analysis preset parsing/lifecycle/persistence failure behavior;
-- formatting/presentation helpers;
-- report comparison;
-- schema-v1 comparison compatibility;
-- Markdown export-option defaults/validation;
-- Quick actions filtering;
-- recent-file metadata parsing/path rejection/deduplication/bounds.
-
-### Rust coverage
-
-- core counts;
-- vocabulary metrics;
-- keyword exclusion semantics;
-- Unicode segmentation;
-- property-based invariants;
-- punctuation/apostrophe cases;
-- report render/import/round-trip/schema/size/data validation;
-- custom Markdown section behavior;
-- canonical JSON behavior under Markdown option input;
-- settings backup round trips and migration;
-- settings invalid values/unknown fields;
-- deterministic encoding edge fixtures;
-- report/settings missing-destination path redaction.
-
-### Checked-in synthetic fixtures
-
-- `src-tauri/tests/fixtures/multilingual.txt`
-- `src-tauri/tests/fixtures/punctuation.txt`
-- `src-tauri/tests/fixtures/malformed-utf8.hex`
-- `src-tauri/tests/fixtures/windows-1252-edge.hex`
-- `src-tauri/tests/fixtures/utf16le-boundary.hex`
-
-Fixtures are synthetic and must remain free of private user documents.
-
-## Verification actually performed during this continuation
-
-The following statements are based on work actually performed, not assumptions:
-
-- Inspected repository state, tree, source files, commit history, PR state, and workflow state through the connected GitHub integration.
-- Searched the repository for `TODO`/`FIXME` implementation placeholders; no unresolved implementation placeholder was found in that search.
-- Inspected the preceding encoding-fixture commit and confirmed all three deterministic `.hex` fixtures were wired into Rust decoding tests.
-- Performed targeted strict standalone TypeScript compilation for the preset/state/type/preset-UI modules; it passed.
-- Detected and fixed a TypeScript test excess-property issue during review before merging the preset feature.
-- Detected and fixed the preset UI module initialization race before merging PR #1.
-- Performed targeted strict standalone TypeScript compilation for report-export option/parser/dialog modules; it passed.
-- Detected and fixed a potential Rust `-D warnings` dead-code issue by making the legacy default Markdown helper test-scoped after the custom renderer became the production path.
-- Detected and fixed the private destination-directory disclosure in report/settings error rendering.
-- Resolved PR synchronization conflicts without overwriting newer merged functionality; the Markdown exporter and path-redaction fix were explicitly combined rather than choosing an obsolete whole-file version.
-- Executed the new dependency-free version metadata checker locally with all versions at `0.1.0`; it returned success.
-- Intentionally changed only the Tauri version in a local checker fixture; the checker returned exit code `1` and identified the mismatch.
-- Performed a strict standalone TypeScript compile of `src/app-version-ui.ts` against the Tauri `getVersion(): Promise<string>` API contract; it passed.
-- PR #1, PR #2, PR #3, and PR #4 were all merged using normal merge commits rather than squash merges so their granular commit histories were preserved.
-
-## Verification not completed — do not treat as passing
-
-The following complete repository gates have **not** been truthfully executed from a clean dependency/toolchain environment in this continuation:
+The following still require a registry-capable/full Rust + native desktop environment:
 
 ```bash
 npm install
@@ -394,89 +376,34 @@ cargo test --all-targets
 cargo run --release --example benchmark -- 16 5
 ```
 
-Clarification: the standalone version checker itself was executed locally as described above. The list above means the **full clean repository suite**, beginning with a real dependency install, has not been completed end-to-end in this environment.
+Complete Windows/macOS/Linux packaged install/manual acceptance also remains an external release gate.
 
-Reasons:
+## Remaining external/release gates
 
-- The local execution environment does not provide the Rust toolchain used by this repository.
-- `package-lock.json` is absent.
-- `src-tauri/Cargo.lock` is absent.
-- Lockfiles must be generated by npm/Cargo in a registry-capable environment; they must not be fabricated manually.
-- Registry/network access in the available local execution environment has not been reliable enough to claim a clean dependency install/build.
-- GitHub-hosted workflow runs observed during the PR work were queued rather than completed at the times inspected; a queued run is not evidence of a passing gate.
+These are not missing product source features and should not be fabricated:
 
-## Current roadmap status
+1. Generate/review `package-lock.json` with npm in a registry-capable environment.
+2. Generate/review `src-tauri/Cargo.lock` with Cargo in a registry-capable environment.
+3. Run the complete clean frontend/Rust quality suite.
+4. Run and record the release benchmark with machine/OS/toolchain/input/iteration evidence.
+5. Build/package from clean Windows, macOS, and Linux checkouts.
+6. Install and manually exercise each produced platform artifact.
+7. Perform native keyboard/screen-reader/reduced-motion/scaling review.
+8. Capture real screenshots from verified release candidates.
+9. Configure Windows signing and Apple signing/notarization when credentials are available.
+10. Apply repository-admin branch protection/rules per `docs/branch-protection.md`.
+11. Generate and verify SHA-256 manifests for the actual final artifacts.
+12. Re-run release-candidate verification before publishing a stable tag/release.
 
-### Completed source-owned roadmap work
+## Stale draft PR warning
 
-- offline analysis foundation;
-- vocabulary metrics;
-- report schema v2 plus schema-v1 import compatibility;
-- bounded validated report import;
-- settings backup/restore;
-- deterministic multilingual/punctuation/encoding fixtures;
-- undefined Windows-1252 replacement diagnostics;
-- report comparison;
-- keyword exclusions;
-- Quick actions;
-- opt-in recent-file metadata;
-- reusable local analysis presets;
-- privacy-safe Markdown report customization;
-- release version consistency enforcement.
-
-### Remaining roadmap/release work
-
-- validate packaged builds from clean checkouts on Windows, macOS, and Linux;
-- generate/review npm and Cargo lockfiles in a registry-capable environment;
-- run the complete frontend/Rust quality suite;
-- run and record the release benchmark;
-- complete installer signing/notarization where credentials are available;
-- complete native screen-reader/manual accessibility review;
-- replace repository mock/preview screenshots with real verified release-candidate screenshots;
-- freeze and document the final 1.0 report-schema compatibility guarantee;
-- enable documented `main` branch protection/rules and require meaningful checks;
-- consider encoding heuristic changes only if they remain deterministic, offline, conservative, and clearly labelled.
-
-## Known limitations that remain intentionally documented
-
-1. There are no committed npm/Cargo lockfiles yet.
-2. Full clean-build verification is not complete in this execution environment.
-3. Native platform installers have not been manually installed/tested here.
-4. Signing/notarization needs external credentials.
-5. Native screen-reader review needs real supported desktop environments.
-6. Repository screenshots are still not final release-candidate platform captures.
-7. Line-oriented streaming retains the current logical line; an extremely large single-line file can therefore still require memory proportional to that line.
-8. Analysis presets are device-local and are not part of settings backup schema v2 by design.
-9. Markdown section choices are session-only and are not persisted by design.
-10. Historical recent-file entries cannot reopen files because paths are deliberately not retained.
-
-## Next exact tasks
-
-1. In a registry-capable environment, run `npm install` and generate/review `package-lock.json`.
-2. In a Rust-enabled registry-capable environment, generate/review `src-tauri/Cargo.lock`.
-3. Run the entire frontend suite, including `npm run version:check` and `npm run docs:check`.
-4. Run `cargo fmt --check`, Clippy with warnings denied, and all-target Rust tests.
-5. Fix every observed failure and add regression coverage for every defect found.
-6. Run the release benchmark and record machine/OS/toolchain/input/iteration evidence.
-7. Build/package from clean Windows, macOS, and Linux checkouts.
-8. Install each produced artifact and execute the complete manual acceptance checklist.
-9. Perform native keyboard/screen-reader/reduced-motion/scaling review on each supported desktop OS.
-10. Capture real screenshots from verified packaged release candidates.
-11. Configure signing/notarization when credentials are available.
-12. Enable branch protection/rules for `main` and require meaningful CI checks.
-13. Re-run clean-checkout release-candidate verification before tagging a stable release.
-
-## Commit-history policy used
-
-This continuation intentionally preferred many small meaningful commits over large monolithic commits. Merge conflicts between independently developed features were resolved using explicit synchronization merge commits so the original feature histories were retained instead of rebasing/squashing them away.
-
-No artificial whitespace churn or meaningless commit splitting was intentionally used merely to inflate the count.
+The earlier draft PR #7 (`build: generate dependency lockfiles`) must not be treated as completion evidence. Its current branch did not contain `package-lock.json` or `src-tauri/Cargo.lock`, and temporary generator/platform workflows plus release-verification claims remained in its diff. The correct action is to close/supersede that draft rather than merge it.
 
 ## Definition-of-done status
 
-The repository now contains the requested core product implementation plus the coherent source-owned reliability/privacy/power-user features completed in this continuation.
+**Source-owned product implementation and this final source reliability/documentation audit are complete for the current milestone.**
 
-**Do not declare TextLens fully release-complete, fully verified, or bug-free yet.** The remaining clean dependency/toolchain checks, lockfiles, cross-platform package verification, signing/notarization, accessibility review, branch protection, and real release-candidate screenshots still require actual execution/evidence.
+**Cross-platform release verification is not yet complete.** Do not claim TextLens is fully packaged, signed/notarized, accessibility-verified on native platforms, lockfile-reproducible, or bug-free across every supported desktop until the external gates above are actually executed and recorded.
 
 ---
 
