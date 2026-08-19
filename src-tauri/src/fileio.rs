@@ -56,8 +56,12 @@ pub fn analyze_path(path: &Path, options: AnalysisOptions) -> Result<AnalysisRep
     if file_size > streaming_threshold_bytes()
         && matches!(encoding, DetectedEncoding::Utf8 | DetectedEncoding::Windows1252)
     {
-        let (mut report, had_errors) =
-            analyze_streaming(path, options, encoding, source(AnalysisMode::Streaming))?;
+        let (mut report, had_errors) = analyze_streaming(
+            path,
+            options,
+            encoding,
+            source(AnalysisMode::Streaming),
+        )?;
         report.encoding = Some(EncodingInfo {
             name: encoding_name(encoding).into(),
             bom_detected,
@@ -69,9 +73,9 @@ pub fn analyze_path(path: &Path, options: AnalysisOptions) -> Result<AnalysisRep
 
     let bytes = std::fs::read(path).map_err(AppError::ReadFile)?;
     let (text, had_errors) = decode_all(&bytes, encoding);
-    let mut acc = AnalysisAccumulator::new(options);
-    acc.push_line_chunk(&text, bytes.len());
-    Ok(acc.finish(
+    let mut accumulator = AnalysisAccumulator::new(options);
+    accumulator.push_line_chunk(&text, bytes.len());
+    Ok(accumulator.finish(
         source(AnalysisMode::Memory),
         Some(EncodingInfo {
             name: encoding_name(encoding).into(),
@@ -90,16 +94,14 @@ fn analyze_streaming(
 ) -> Result<(AnalysisReport, bool), AppError> {
     let file = File::open(path).map_err(AppError::ReadFile)?;
     let mut reader = BufReader::with_capacity(128 * 1024, file);
-    let mut acc = AnalysisAccumulator::new(options);
+    let mut accumulator = AnalysisAccumulator::new(options);
     let mut raw = Vec::with_capacity(8 * 1024);
     let mut had_errors = false;
     let mut first = true;
 
     loop {
         raw.clear();
-        let read = reader
-            .read_until(b'\n', &mut raw)
-            .map_err(AppError::ReadFile)?;
+        let read = reader.read_until(b'\n', &mut raw).map_err(AppError::ReadFile)?;
         if read == 0 {
             break;
         }
@@ -114,13 +116,15 @@ fn analyze_streaming(
         let (line, line_errors) = match encoding {
             DetectedEncoding::Utf8 => decode_utf8(payload),
             DetectedEncoding::Windows1252 => decode_windows_1252(payload),
-            _ => unreachable!("UTF-16 uses memory mode"),
+            DetectedEncoding::Utf16Le | DetectedEncoding::Utf16Be => {
+                unreachable!("UTF-16 uses memory mode")
+            }
         };
         had_errors |= line_errors;
-        acc.push_line_chunk(&line, read);
+        accumulator.push_line_chunk(&line, read);
     }
 
-    Ok((acc.finish(source, None), had_errors))
+    Ok((accumulator.finish(source, None), had_errors))
 }
 
 fn detect_encoding(sample: &[u8]) -> (DetectedEncoding, bool, bool) {
@@ -163,6 +167,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
     } else {
         bytes.strip_prefix(&[0xFE, 0xFF]).unwrap_or(bytes)
     };
+
     let mut had_errors = payload.len() % 2 != 0;
     let units = payload.chunks_exact(2).map(|pair| {
         if little_endian {
@@ -171,6 +176,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
             u16::from_be_bytes([pair[0], pair[1]])
         }
     });
+
     let mut output = String::with_capacity(payload.len() / 2);
     for item in char::decode_utf16(units) {
         match item {
@@ -184,6 +190,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
     if payload.len() % 2 != 0 {
         output.push('\u{FFFD}');
     }
+
     (output, had_errors)
 }
 
@@ -273,7 +280,10 @@ mod tests {
             detect_encoding(&[0xFF, 0xFE, b'a', 0]).0,
             DetectedEncoding::Utf16Le
         );
-        assert_eq!(detect_encoding("café".as_bytes()).0, DetectedEncoding::Utf8);
+        assert_eq!(
+            detect_encoding("café".as_bytes()).0,
+            DetectedEncoding::Utf8
+        );
     }
 
     #[test]
@@ -287,13 +297,6 @@ mod tests {
     }
 
     #[test]
-    fn windows_1252_undefined_bytes_are_reported() {
-        let (text, errors) = decode_all(&[b'A', 0x81, b'B'], DetectedEncoding::Windows1252);
-        assert_eq!(text, "A�B");
-        assert!(errors);
-    }
-
-    #[test]
     fn hides_full_path() {
         let mut file = NamedTempFile::new().unwrap();
         write!(file, "hello world").unwrap();
@@ -301,5 +304,36 @@ mod tests {
         assert_eq!(report.stats.words, 2);
         assert_eq!(report.source.kind, SourceKind::File);
         assert!(report.source.display_name.is_some());
+    }
+
+    #[test]
+    fn malformed_utf8_fixture_reports_replacement() {
+        let bytes = parse_hex(include_str!("../tests/fixtures/malformed-utf8.hex"));
+        let (text, errors) = decode_utf8(&bytes);
+        assert!(errors);
+        assert_eq!(text, "fo\u{FFFD}o");
+    }
+
+    #[test]
+    fn windows_1252_edge_fixture_flags_undefined_byte() {
+        let bytes = parse_hex(include_str!("../tests/fixtures/windows-1252-edge.hex"));
+        let (text, errors) = decode_windows_1252(&bytes);
+        assert!(errors);
+        assert_eq!(text, "Hi \u{FFFD} €");
+    }
+
+    #[test]
+    fn utf16_boundary_fixture_flags_odd_trailing_byte() {
+        let bytes = parse_hex(include_str!("../tests/fixtures/utf16le-boundary.hex"));
+        let (text, errors) = decode_utf16(&bytes, true);
+        assert!(errors);
+        assert_eq!(text, "Hi\u{FFFD}");
+    }
+
+    fn parse_hex(source: &str) -> Vec<u8> {
+        source
+            .split_whitespace()
+            .map(|value| u8::from_str_radix(value, 16).expect("fixture contains valid hex bytes"))
+            .collect()
     }
 }
