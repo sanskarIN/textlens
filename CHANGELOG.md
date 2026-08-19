@@ -17,7 +17,7 @@ All notable TextLens changes are documented here.
 - Per-entry removal and clear-all controls for recent-file metadata; disabling the setting clears the history.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
 - Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, and keyword-exclusion settings parsing.
-- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, and punctuation handling.
+- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, and private-path error redaction.
 
 ### Changed
 
@@ -32,6 +32,7 @@ All notable TextLens changes are documented here.
 - Imported report metadata, frequencies, sizes, schema versions, and numeric relationships are validated before presentation.
 - Report comparison operates on aggregate exported report data and never attempts to reconstruct source document text.
 - Recent-file history is disabled by default, never stores full paths, rejects path-like display names, and is erased when the preference is disabled.
+- Missing report/settings export destination errors no longer retain or echo the private directory path.
 
 ## [0.1.0] - 2026-08-19
 
