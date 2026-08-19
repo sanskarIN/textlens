@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { en } from "./i18n/en";
-import { formatBytes, formatDuration, formatInteger } from "./lib/format";
+import { formatInteger } from "./lib/format";
+import { encodingSummary, escapeHtml, metricRows } from "./lib/presentation";
 import { defaultSettings, loadSettings, parseSettings, saveSettings } from "./state";
 import type {
   AnalysisOptions,
@@ -24,23 +25,23 @@ app.innerHTML = `
       <span><strong>${en.appName}</strong><small>${en.tagline}</small></span>
     </a>
     <nav aria-label="Application">
-      <button id="settingsButton" class="ghost" type="button">Settings</button>
-      <button id="aboutButton" class="ghost" type="button">About</button>
+      <button id="settingsButton" class="ghost" type="button">${en.settings}</button>
+      <button id="aboutButton" class="ghost" type="button">${en.about}</button>
     </nav>
   </header>
   <main id="workspace" class="workspace">
     <section id="onboarding" class="onboarding" aria-labelledby="welcomeTitle">
       <div>
-        <p class="eyebrow">Welcome to TextLens</p>
-        <h1 id="welcomeTitle">See what your text is made of.</h1>
-        <p>Paste text for live analysis or open a local file. Analysis happens on this device with no sign-in.</p>
+        <p class="eyebrow">${en.welcomeEyebrow}</p>
+        <h1 id="welcomeTitle">${en.welcomeTitle}</h1>
+        <p>${en.welcomeBody}</p>
       </div>
-      <button id="dismissOnboarding" class="ghost" type="button">Got it</button>
+      <button id="dismissOnboarding" class="ghost" type="button">${en.gotIt}</button>
     </section>
 
     <section class="panel editor-panel" aria-labelledby="inputHeading">
       <div class="heading">
-        <div><p class="eyebrow">Workspace</p><h2 id="inputHeading">${en.inputLabel}</h2></div>
+        <div><p class="eyebrow">${en.workspace}</p><h2 id="inputHeading">${en.inputLabel}</h2></div>
         <div class="actions">
           <button id="openButton" class="primary" type="button">${en.openFile}</button>
           <button id="clearButton" type="button">${en.clear}</button>
@@ -50,45 +51,45 @@ app.innerHTML = `
       <textarea id="textInput" spellcheck="true" autocomplete="off" placeholder="${en.inputPlaceholder}" aria-describedby="privacyHint analysisStatus"></textarea>
       <div class="editor-footer">
         <p id="privacyHint">${en.privacyNote}</p>
-        <p id="analysisStatus" role="status" aria-live="polite">Ready</p>
+        <p id="analysisStatus" role="status" aria-live="polite">${en.ready}</p>
       </div>
     </section>
 
     <section aria-labelledby="overviewHeading">
       <div class="heading compact">
-        <div><p class="eyebrow">Overview</p><h2 id="overviewHeading">Live metrics</h2></div>
-        <span id="sourceBadge" class="badge">Pasted text</span>
+        <div><p class="eyebrow">${en.overview}</p><h2 id="overviewHeading">${en.liveMetrics}</h2></div>
+        <span id="sourceBadge" class="badge">${en.pastedText}</span>
       </div>
       <div id="metricsGrid" class="metrics" aria-live="polite"></div>
     </section>
 
     <div class="columns">
       <section class="panel">
-        <div class="heading compact"><div><p class="eyebrow">Language</p><h2>Keywords</h2></div></div>
-        <div id="keywordsList" class="frequency empty">Nothing to show yet.</div>
+        <div class="heading compact"><div><p class="eyebrow">${en.language}</p><h2>${en.keywords}</h2></div></div>
+        <div id="keywordsList" class="frequency empty">${en.nothingToShow}</div>
       </section>
       <section class="panel">
         <div class="heading compact">
-          <div><p class="eyebrow">Patterns</p><h2>N-grams</h2></div>
+          <div><p class="eyebrow">${en.patterns}</p><h2>${en.ngrams}</h2></div>
           <div class="segmented" role="group" aria-label="N-gram size">
-            <button class="active" data-ngram="2" type="button">2-word</button>
-            <button data-ngram="3" type="button">3-word</button>
+            <button class="active" data-ngram="2" type="button">${en.twoWord}</button>
+            <button data-ngram="3" type="button">${en.threeWord}</button>
           </div>
         </div>
-        <div id="ngramsList" class="frequency empty">Nothing to show yet.</div>
+        <div id="ngramsList" class="frequency empty">${en.nothingToShow}</div>
       </section>
     </div>
 
     <section class="panel">
-      <div class="heading compact"><div><p class="eyebrow">Quality</p><h2>Whitespace & line endings</h2></div></div>
+      <div class="heading compact"><div><p class="eyebrow">${en.quality}</p><h2>${en.whitespaceAndLineEndings}</h2></div></div>
       <div id="diagnosticsGrid" class="diagnostics"></div>
     </section>
 
     <section class="panel export">
       <div>
-        <p class="eyebrow">Portable results</p>
-        <h2>Export this analysis</h2>
-        <p>Save aggregate results as JSON or Markdown. Source text is never included.</p>
+        <p class="eyebrow">${en.portableResults}</p>
+        <h2>${en.exportHeading}</h2>
+        <p>${en.exportBody}</p>
       </div>
       <div class="actions">
         <button id="exportJsonButton" type="button" disabled>${en.exportJson}</button>
@@ -99,39 +100,39 @@ app.innerHTML = `
   <footer>
     <span>${en.watermark}</span><span>•</span>
     <button class="link" data-external="https://github.com/sanskarIN/textlens" type="button">GitHub</button><span>•</span>
-    <button class="link" data-external="https://buymeacoffee.com/sanskarIN" type="button">Buy Me a Coffee</button>
+    <button class="link" data-external="https://buymeacoffee.com/sanskarIN" type="button">${en.buyMeACoffee}</button>
   </footer>
 </div>
 
 <dialog id="settingsDialog">
   <form id="settingsForm" method="dialog">
     <div class="heading">
-      <div><p class="eyebrow">Preferences</p><h2>Settings</h2></div>
-      <button value="cancel" class="ghost" aria-label="Close settings">Close</button>
+      <div><p class="eyebrow">${en.preferences}</p><h2>${en.settings}</h2></div>
+      <button value="cancel" class="ghost" aria-label="${en.closeSettings}">${en.close}</button>
     </div>
     <div class="settings">
-      <label>Theme
+      <label>${en.theme}
         <select id="themeSelect">
-          <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+          <option value="system">${en.themeSystem}</option><option value="light">${en.themeLight}</option><option value="dark">${en.themeDark}</option>
         </select>
       </label>
-      <label>Reading speed (words/min)<input id="readingWpmInput" type="number" min="30" max="1000"></label>
-      <label>Speaking speed (words/min)<input id="speakingWpmInput" type="number" min="30" max="1000"></label>
-      <label>Top keywords<input id="topKeywordsInput" type="number" min="1" max="50"></label>
-      <label>Top n-grams<input id="topNgramsInput" type="number" min="1" max="50"></label>
-      <label class="check"><input id="reducedMotionInput" type="checkbox">Reduce non-essential motion</label>
+      <label>${en.readingSpeed}<input id="readingWpmInput" type="number" min="30" max="1000"></label>
+      <label>${en.speakingSpeed}<input id="speakingWpmInput" type="number" min="30" max="1000"></label>
+      <label>${en.topKeywords}<input id="topKeywordsInput" type="number" min="1" max="50"></label>
+      <label>${en.topNgrams}<input id="topNgramsInput" type="number" min="1" max="50"></label>
+      <label class="check"><input id="reducedMotionInput" type="checkbox">${en.reduceMotion}</label>
     </div>
     <div class="privacy">
-      <h3>Privacy & data</h3>
-      <p>Document contents stay local. Preferences use local WebView storage. Export occurs only to a path you choose.</p>
+      <h3>${en.privacyAndData}</h3>
+      <p>${en.privacySettingsBody}</p>
       <div class="actions">
-        <button id="backupSettingsButton" type="button">Back up settings</button>
-        <button id="restoreSettingsButton" type="button">Restore settings</button>
+        <button id="backupSettingsButton" type="button">${en.backupSettings}</button>
+        <button id="restoreSettingsButton" type="button">${en.restoreSettings}</button>
       </div>
     </div>
     <div class="actions end">
-      <button id="resetSettingsButton" type="button">Restore defaults</button>
-      <button id="saveSettingsButton" class="primary" type="submit">Save settings</button>
+      <button id="resetSettingsButton" type="button">${en.restoreDefaults}</button>
+      <button id="saveSettingsButton" class="primary" type="submit">${en.saveSettings}</button>
     </div>
   </form>
 </dialog>
@@ -139,20 +140,20 @@ app.innerHTML = `
 <dialog id="aboutDialog">
   <div>
     <div class="heading">
-      <div><p class="eyebrow">TextLens 0.1.0</p><h2>About</h2></div>
-      <button id="closeAboutButton" class="ghost" type="button">Close</button>
+      <div><p class="eyebrow">TextLens 0.1.0</p><h2>${en.about}</h2></div>
+      <button id="closeAboutButton" class="ghost" type="button">${en.close}</button>
     </div>
     <img class="about-logo" src="/logo.svg" alt="TextLens logo" width="76" height="76">
-    <p>Open-source, privacy-first desktop word counting and text diagnostics built with Rust, Tauri, TypeScript, and Vite.</p>
+    <p>${en.aboutDescription}</p>
     <dl>
-      <div><dt>License</dt><dd>MIT</dd></div>
-      <div><dt>Business</dt><dd>sanskarin@outlook.in</dd></div>
-      <div><dt>Business</dt><dd>sanskarin.business@gmail.com</dd></div>
-      <div><dt>Support</dt><dd>supportramsandesh@gmail.com</dd></div>
+      <div><dt>${en.license}</dt><dd>MIT</dd></div>
+      <div><dt>${en.business}</dt><dd>sanskarin@outlook.in</dd></div>
+      <div><dt>${en.business}</dt><dd>sanskarin.business@gmail.com</dd></div>
+      <div><dt>${en.support}</dt><dd>supportramsandesh@gmail.com</dd></div>
     </dl>
     <div class="actions">
-      <button data-external="https://github.com/sanskarIN/textlens" type="button">View source</button>
-      <button class="primary" data-external="https://buymeacoffee.com/sanskarIN" type="button">Buy Me a Coffee</button>
+      <button data-external="https://github.com/sanskarIN/textlens" type="button">${en.viewSource}</button>
+      <button class="primary" data-external="https://buymeacoffee.com/sanskarIN" type="button">${en.buyMeACoffee}</button>
     </div>
     <p class="credit">${en.watermark}</p>
   </div>
@@ -189,14 +190,6 @@ const opts = (): AnalysisOptions => ({
   topNgrams: settings.topNgrams,
 });
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[
-      character
-    ] ?? character,
-  );
-}
-
 function setStatus(message: string, error = false): void {
   status.textContent = message;
   status.classList.toggle("error", error);
@@ -208,32 +201,7 @@ function setExport(): void {
 }
 
 function renderMetrics(current: AnalysisReport | null): void {
-  const rows = current
-    ? [
-        ["Words", formatInteger(current.stats.words)],
-        ["Unique words", formatInteger(current.stats.uniqueWords)],
-        ["Longest word", `${formatInteger(current.stats.maxWordCharacters)} chars`],
-        ["Characters", formatInteger(current.stats.characters)],
-        ["Sentences", formatInteger(current.stats.sentences)],
-        ["Paragraphs", formatInteger(current.stats.paragraphs)],
-        ["Lines", formatInteger(current.stats.lines)],
-        ["Bytes", formatBytes(current.stats.bytes)],
-        ["Reading time", formatDuration(current.stats.readingSeconds)],
-        ["Speaking time", formatDuration(current.stats.speakingSeconds)],
-      ]
-    : [
-        ["Words", "—"],
-        ["Unique words", "—"],
-        ["Longest word", "—"],
-        ["Characters", "—"],
-        ["Sentences", "—"],
-        ["Paragraphs", "—"],
-        ["Lines", "—"],
-        ["Bytes", "—"],
-        ["Reading time", "—"],
-        ["Speaking time", "—"],
-      ];
-  metrics.innerHTML = rows
+  metrics.innerHTML = metricRows(current)
     .map(
       ([key, value]) =>
         `<article><span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></article>`,
@@ -244,7 +212,7 @@ function renderMetrics(current: AnalysisReport | null): void {
 function renderFrequency(element: HTMLElement, items: FrequencyItem[]): void {
   if (!items.length) {
     element.className = "frequency empty";
-    element.textContent = "Nothing to show yet.";
+    element.textContent = en.nothingToShow;
     return;
   }
   element.className = "frequency";
@@ -258,24 +226,21 @@ function renderFrequency(element: HTMLElement, items: FrequencyItem[]): void {
 
 function renderDiagnostics(current: AnalysisReport | null): void {
   if (!current) {
-    diagnostics.innerHTML = ["Line endings", "Blank lines", "Trailing whitespace", "Encoding"]
+    diagnostics.innerHTML = [en.lineEndings, en.blankLines, en.trailingWhitespace, en.encoding]
       .map((label) => `<div><span>${label}</span><strong>—</strong></div>`)
       .join("");
     return;
   }
   const endings = current.whitespace.lineEndings;
-  const encoding = current.encoding
-    ? `${current.encoding.name}${current.encoding.fallbackUsed ? " · fallback" : ""}${current.encoding.hadErrors ? " · replacement chars" : ""}`
-    : "UTF-8 text";
   diagnostics.innerHTML = `
-    <div><span>Line endings</span><strong>${escapeHtml(endings.dominant)}${endings.mixed ? " · mixed" : ""}</strong></div>
-    <div><span>Blank lines</span><strong>${formatInteger(current.whitespace.blankLines)}</strong></div>
-    <div><span>Trailing whitespace lines</span><strong>${formatInteger(current.whitespace.trailingWhitespaceLines)}</strong></div>
-    <div><span>Encoding</span><strong>${escapeHtml(encoding)}</strong></div>
-    <div><span>Spaces</span><strong>${formatInteger(current.whitespace.spaces)}</strong></div>
-    <div><span>Tabs</span><strong>${formatInteger(current.whitespace.tabs)}</strong></div>
+    <div><span>${en.lineEndings}</span><strong>${escapeHtml(endings.dominant)}${endings.mixed ? ` · ${en.mixedSuffix}` : ""}</strong></div>
+    <div><span>${en.blankLines}</span><strong>${formatInteger(current.whitespace.blankLines)}</strong></div>
+    <div><span>${en.trailingWhitespaceLines}</span><strong>${formatInteger(current.whitespace.trailingWhitespaceLines)}</strong></div>
+    <div><span>${en.encoding}</span><strong>${escapeHtml(encodingSummary(current))}</strong></div>
+    <div><span>${en.spaces}</span><strong>${formatInteger(current.whitespace.spaces)}</strong></div>
+    <div><span>${en.tabs}</span><strong>${formatInteger(current.whitespace.tabs)}</strong></div>
     <div><span>LF / CRLF / CR</span><strong>${endings.lf} / ${endings.crlf} / ${endings.cr}</strong></div>
-    <div><span>Graphemes</span><strong>${formatInteger(current.stats.graphemes)}</strong></div>`;
+    <div><span>${en.graphemes}</span><strong>${formatInteger(current.stats.graphemes)}</strong></div>`;
 }
 
 function render(current: AnalysisReport | null): void {
@@ -290,8 +255,8 @@ function clear(): void {
   sequence += 1;
   input.value = "";
   report = null;
-  badge.textContent = "Pasted text";
-  setStatus("Ready");
+  badge.textContent = en.pastedText;
+  setStatus(en.ready);
   render(null);
   input.focus();
 }
@@ -303,7 +268,7 @@ function schedule(): void {
     clear();
     return;
   }
-  setStatus("Analyzing…");
+  setStatus(en.analyzing);
   timer = window.setTimeout(() => void analyzePasted(current), 180);
 }
 
@@ -312,9 +277,9 @@ async function analyzePasted(current: number): Promise<void> {
     const next = await invoke<AnalysisReport>("analyze_text", { text: input.value, options: opts() });
     if (current !== sequence) return;
     report = next;
-    badge.textContent = "Pasted text · memory";
+    badge.textContent = `${en.pastedText} · memory`;
     render(report);
-    setStatus("Analysis updated");
+    setStatus(en.analysisUpdated);
   } catch (error) {
     if (current === sequence) setStatus(`Error: ${String(error)}`, true);
   }
@@ -334,18 +299,14 @@ async function openFile(): Promise<void> {
       ],
     });
     if (typeof path !== "string") return;
-    setStatus("Analyzing file…");
+    setStatus(en.analyzingFile);
     const next = await invoke<AnalysisReport>("analyze_file", { path, options: opts() });
     sequence += 1;
     input.value = "";
     report = next;
     badge.textContent = `${next.source.displayName ?? "File"} · ${next.source.mode}`;
     render(report);
-    setStatus(
-      next.source.mode === "streaming"
-        ? "Large file analyzed in streaming mode"
-        : "File analyzed",
-    );
+    setStatus(next.source.mode === "streaming" ? en.largeFileAnalyzed : en.fileAnalyzed);
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
   }
@@ -362,7 +323,7 @@ async function exportReport(format: "json" | "markdown"): Promise<void> {
     });
     if (!path) return;
     await invoke("export_report", { path, report, format });
-    setStatus("Report exported");
+    setStatus(en.reportExported);
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
   }
@@ -377,7 +338,7 @@ async function backupSettings(): Promise<void> {
     });
     if (!path) return;
     await invoke("export_settings", { path, settings });
-    setStatus("Settings backup saved");
+    setStatus(en.settingsBackupSaved);
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
   }
@@ -397,7 +358,7 @@ async function restoreSettings(): Promise<void> {
     saveSettings(settings);
     applySettings();
     syncSettings();
-    setStatus("Settings restored");
+    setStatus(en.settingsRestored);
     if (input.value) schedule();
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
@@ -436,7 +397,7 @@ function saveSettingsForm(event: Event): void {
   saveSettings(settings);
   applySettings();
   settingsDialog.close();
-  setStatus("Settings saved");
+  setStatus(en.settingsSaved);
   if (input.value) schedule();
 }
 
@@ -461,7 +422,7 @@ get<HTMLButtonElement>("resetSettingsButton").onclick = () => {
   saveSettings(settings);
   applySettings();
   syncSettings();
-  setStatus("Default settings restored");
+  setStatus(en.defaultsRestored);
 };
 get<HTMLButtonElement>("backupSettingsButton").onclick = () => void backupSettings();
 get<HTMLButtonElement>("restoreSettingsButton").onclick = () => void restoreSettings();
