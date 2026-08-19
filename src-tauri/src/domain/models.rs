@@ -1,12 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+const MAX_KEYWORD_EXCLUSIONS: usize = 100;
+const MAX_KEYWORD_EXCLUSION_CHARACTERS: usize = 64;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalysisOptions {
     pub reading_wpm: u32,
     pub speaking_wpm: u32,
     pub top_keywords: usize,
     pub top_ngrams: usize,
+    #[serde(default)]
+    pub keyword_exclusions: Vec<String>,
 }
 
 impl Default for AnalysisOptions {
@@ -16,17 +21,38 @@ impl Default for AnalysisOptions {
             speaking_wpm: 150,
             top_keywords: 12,
             top_ngrams: 10,
+            keyword_exclusions: Vec::new(),
         }
     }
 }
 
 impl AnalysisOptions {
     pub fn sanitized(self) -> Self {
+        let keyword_exclusions = self
+            .keyword_exclusions
+            .into_iter()
+            .filter_map(|value| {
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(
+                        trimmed
+                            .chars()
+                            .take(MAX_KEYWORD_EXCLUSION_CHARACTERS)
+                            .collect::<String>(),
+                    )
+                }
+            })
+            .take(MAX_KEYWORD_EXCLUSIONS)
+            .collect();
+
         Self {
             reading_wpm: self.reading_wpm.clamp(30, 1000),
             speaking_wpm: self.speaking_wpm.clamp(30, 1000),
             top_keywords: self.top_keywords.clamp(1, 50),
             top_ngrams: self.top_ngrams.clamp(1, 50),
+            keyword_exclusions,
         }
     }
 }
