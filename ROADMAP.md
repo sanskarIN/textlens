@@ -23,7 +23,8 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Surface undefined Windows-1252 byte replacements in encoding diagnostics.
 - [x] Add bounded, validated JSON report import with legacy schema compatibility.
 - [x] Establish report schema v2 for vocabulary metrics while continuing to read schema v1.
-- [ ] Expand the checked-in synthetic fixture corpus for difficult punctuation and encoding boundaries.
+- [x] Add a checked-in synthetic fixture corpus for multilingual text and difficult punctuation.
+- [ ] Add deterministic byte fixtures for malformed UTF-8, UTF-16 boundaries, and Windows-1252 edge bytes.
 - [ ] Improve encoding heuristics only if deterministic, offline, and clearly labelled.
 - [ ] Add richer report customization without including raw source text by default.
 
