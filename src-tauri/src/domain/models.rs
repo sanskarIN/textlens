@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+pub const CURRENT_REPORT_VERSION: u8 = 2;
 const MAX_KEYWORD_EXCLUSIONS: usize = 100;
 const MAX_KEYWORD_EXCLUSION_CHARACTERS: usize = 64;
 
@@ -93,7 +94,9 @@ pub struct EncodingInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TextStats {
     pub words: usize,
+    #[serde(default)]
     pub unique_words: usize,
+    #[serde(default)]
     pub max_word_characters: usize,
     pub characters: usize,
     pub graphemes: usize,
