@@ -27,16 +27,29 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Word, unique-word, longest-word, character, grapheme, sentence, paragraph, line, and byte counts.
 - Configurable reading-time and speaking-time estimates.
 - Ranked keyword frequency, bigrams, and trigrams.
+- Local keyword-exclusion lists for hiding unhelpful words from keyword summaries without changing core counts or n-grams.
 - Whitespace diagnostics, blank-line counts, trailing-whitespace counts, and LF/CRLF/CR detection.
 - Live analysis for pasted text.
 - Local file analysis with UTF-8, UTF-16 BOM handling, and a clearly labelled Windows-1252 safe fallback.
 - Invalid UTF-8 and undefined Windows-1252 bytes are surfaced through an encoding warning rather than silently hidden.
 - Streaming analysis for large UTF-8/Windows-1252 files to avoid loading the entire document at once.
 - JSON and Markdown report export; source document text is deliberately excluded from reports.
+- Versioned JSON report schema with bounded, validated local report import and compatibility for legacy schema-v1 exports.
+- Compare the current analysis with a previously exported TextLens JSON report without loading source document content.
 - Versioned settings backup/restore with strict validation and a size limit.
+- Keyboard-first searchable quick actions for common workflows plus direct desktop shortcuts.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
 - No account, analytics SDK, cloud API, or donation gate.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl/Cmd + Shift + P` | Open Quick actions |
+| `Ctrl/Cmd + O` | Open a local text file |
+| `Ctrl/Cmd + E` | Export the current report as Markdown |
+| `Ctrl/Cmd + K` | Focus the text editor |
 
 ## Supported platforms
 
@@ -48,9 +61,9 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 
 ## Tech stack
 
-- **Rust** — analysis engine, file decoding/streaming, report writing, settings backup validation.
+- **Rust** — analysis engine, file decoding/streaming, report validation/import/export, settings backup validation.
 - **Tauri 2** — native desktop shell and secure IPC.
-- **TypeScript** — strongly typed UI behavior.
+- **TypeScript** — strongly typed UI behavior, report comparison, quick-action filtering, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
 - **GitHub Actions** — CI, security checks, and release automation.
@@ -112,15 +125,21 @@ commands.rs
       │
       ├── domain/analyzer.rs  ← pure counting/frequency logic
       ├── fileio.rs           ← encoding + streaming adapter
-      ├── report.rs           ← privacy-safe JSON/Markdown export
+      ├── report.rs           ← validated report import + privacy-safe export
       └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
-Architecture decisions are recorded in [docs/adr](docs/adr).
+The frontend keeps comparison, quick-action filtering, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+
+## Report compatibility
+
+New analyses use report schema **v2**, which explicitly includes vocabulary metrics. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
+
+Imported reports are size-limited and validated before they reach the UI. Comparison uses only exported aggregate report data and never reconstructs or stores the original source text.
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
@@ -138,11 +157,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 ```
 
-See [docs/testing.md](docs/testing.md) for manual acceptance and Unicode/large-file checks.
+See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, quick-action, and large-file checks.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Report-schema changes must preserve or deliberately document compatibility behavior.
 
 ## Roadmap
 
