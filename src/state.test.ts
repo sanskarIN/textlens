@@ -12,6 +12,7 @@ describe("settings parsing", () => {
         topNgrams: 15,
         keywordExclusions: ["the", "and"],
         reducedMotion: true,
+        recentFilesEnabled: true,
       }),
     ).toEqual({
       theme: "dark",
@@ -21,6 +22,7 @@ describe("settings parsing", () => {
       topNgrams: 15,
       keywordExclusions: ["the", "and"],
       reducedMotion: true,
+      recentFilesEnabled: true,
     });
   });
 
@@ -34,6 +36,7 @@ describe("settings parsing", () => {
         topNgrams: 999,
         keywordExclusions: "the,and",
         reducedMotion: "yes",
+        recentFilesEnabled: "yes",
       }),
     ).toEqual(defaultSettings);
   });
