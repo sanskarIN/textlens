@@ -1,3 +1,5 @@
+import { readStorageItem, removeStorageItem, writeStorageItem } from "./storage";
+
 export interface RecentFileEntry {
   name: string;
   size: number;
@@ -36,20 +38,21 @@ export function recordRecentFile(
 }
 
 export function loadRecentFiles(): RecentFileEntry[] {
+  const raw = readStorageItem(STORAGE_KEY);
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? parseRecentFiles(JSON.parse(raw) as unknown) : [];
+    return parseRecentFiles(JSON.parse(raw) as unknown);
   } catch {
     return [];
   }
 }
 
-export function saveRecentFiles(entries: readonly RecentFileEntry[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parseRecentFiles(entries)));
+export function saveRecentFiles(entries: readonly RecentFileEntry[]): boolean {
+  return writeStorageItem(STORAGE_KEY, JSON.stringify(parseRecentFiles(entries)));
 }
 
-export function clearRecentFiles(): void {
-  localStorage.removeItem(STORAGE_KEY);
+export function clearRecentFiles(): boolean {
+  return removeStorageItem(STORAGE_KEY);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
