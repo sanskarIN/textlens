@@ -96,6 +96,7 @@ export const en = {
   presetApplied: "Analysis preset applied",
   presetDeleted: "Analysis preset deleted",
   presetNameRequired: "Enter a preset name before saving.",
+  presetStorageError: "Analysis presets could not be saved to local storage.",
   privacyAndData: "Privacy & data",
   privacySettingsBody:
     "Document contents stay local. Preferences use local WebView storage. Export occurs only to a path you choose.",
