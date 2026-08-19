@@ -40,6 +40,10 @@ The Recent files panel provides per-entry removal and a clear-all control. Turni
 
 Reports are written only to a destination you choose. They contain aggregate metrics/frequencies, a report schema version, encoding diagnostics when applicable, and at most a display filename. They intentionally omit the original source document content and full path.
 
+JSON exports always remain complete canonical TextLens analysis reports because JSON is also used for validated report import and comparison. Markdown exports can be customized to omit source metadata, core metrics, keywords, bigrams, trigrams, or whitespace diagnostics. The original document text is never offered as an export option.
+
+Markdown section choices are kept only in current UI memory. They are not persisted as a settings record or export history. If source metadata is disabled, the Markdown output omits the display filename, analysis mode, and encoding metadata while retaining the report schema marker and TextLens attribution.
+
 ## Saved-report comparison
 
 When you choose **Compare report**, TextLens reads only the JSON report file you select. Imported reports are size-limited and validated locally before presentation. Comparison operates on aggregate counts and exported top-keyword entries. It does not open, request, reconstruct, or persist the original source document.
@@ -52,7 +56,7 @@ Quick action search terms are UI state inside the local WebView. They are used o
 
 ## Network behavior
 
-Core analysis, settings backup/restore, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
+Core analysis, settings backup/restore, report export customization, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
 
 ## Logging
 
@@ -60,7 +64,7 @@ Production code must never log raw analyzed text, full private document paths, i
 
 ## Retention
 
-There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
+There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Markdown export section choices are session-only UI state. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
 
 ## Contact
 
