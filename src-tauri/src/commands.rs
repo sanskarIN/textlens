@@ -6,7 +6,7 @@ use crate::{
         models::{AnalysisOptions, AnalysisReport},
     },
     error::AppError,
-    fileio, report,
+    fileio,
     settings_backup::{self, SettingsData},
 };
 
