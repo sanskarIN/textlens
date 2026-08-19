@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, parseSettings } from "./state";
+import { defaultSettings, parseAnalysisOptions, parseSettings } from "./state";
 
 describe("settings parsing", () => {
   it("accepts valid persisted values", () => {
@@ -63,5 +63,23 @@ describe("settings parsing", () => {
       keywordExclusions: Array.from({ length: 150 }, (_, index) => `word-${index}`),
     });
     expect(parsed.keywordExclusions).toHaveLength(100);
+  });
+
+  it("validates analysis options independently for reusable workflows", () => {
+    expect(
+      parseAnalysisOptions({
+        readingWpm: 350,
+        speakingWpm: 175,
+        topKeywords: 18,
+        topNgrams: 14,
+        keywordExclusions: ["  Alpha ", "alpha", "Beta"],
+      }),
+    ).toEqual({
+      readingWpm: 350,
+      speakingWpm: 175,
+      topKeywords: 18,
+      topNgrams: 14,
+      keywordExclusions: ["Alpha", "Beta"],
+    });
   });
 });
