@@ -18,6 +18,8 @@ pub enum AppError {
     SettingsTooLarge,
     #[error("The settings backup is not valid TextLens settings JSON.")]
     InvalidSettings(#[source] serde_json::Error),
+    #[error("The settings backup contains unsupported or out-of-range values.")]
+    InvalidSettingsData,
     #[error("The destination must have a parent directory.")]
     InvalidDestination,
     #[error("The destination directory does not exist: {0}")]
