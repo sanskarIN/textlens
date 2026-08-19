@@ -65,9 +65,11 @@ cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-`npm run version:check` is dependency-free and verifies that `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` declare the same application version. For the current source milestone that version is 2.0.12.
+`npm run version:check` is dependency-free. It verifies that `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` declare the same application version and that README release identity, the matching changelog section, and `docs/releases/v<version>.md` are present for that version. For the current source milestone that version is 2.0.12.
 
 Application version and report-schema version are independent. A passing 2.0.12 version check does not authorize a report schema change; the report compatibility contract is in `docs/report-schema.md`.
+
+CI runs the version gate before `npm install`, and tagged release automation runs tag/version/document identity checks before Rust toolchain and platform dependency setup, so release identity drift fails as early as possible.
 
 All checks above are release gates. Do not mark them passing merely because the source was inspected; record the actual command result in `what_changed.md`.
 
