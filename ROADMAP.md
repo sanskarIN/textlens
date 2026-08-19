@@ -24,9 +24,9 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Add bounded, validated JSON report import with legacy schema compatibility.
 - [x] Establish report schema v2 for vocabulary metrics while continuing to read schema v1.
 - [x] Add a checked-in synthetic fixture corpus for multilingual text and difficult punctuation.
-- [ ] Add deterministic byte fixtures for malformed UTF-8, UTF-16 boundaries, and Windows-1252 edge bytes.
+- [x] Add deterministic byte fixtures for malformed UTF-8, UTF-16 boundaries, and Windows-1252 edge bytes.
 - [ ] Improve encoding heuristics only if deterministic, offline, and clearly labelled.
-- [ ] Add richer report customization without including raw source text by default.
+- [x] Add richer report customization without including raw source text by default.
 
 ## 0.3 — Power-user workflows
 
@@ -34,7 +34,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Compare two analysis reports without storing source text.
 - [x] Custom exclusion/stop-word lists stored locally.
 - [x] Command palette / Quick actions for keyboard-first workflows.
-- [ ] Optional reusable local analysis presets for reading rate, speaking rate, exclusions, and result limits.
+- [x] Optional reusable local analysis presets for reading rate, speaking rate, exclusions, and result limits.
 
 ## 1.0 — Stable desktop release
 

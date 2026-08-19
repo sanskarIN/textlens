@@ -26,7 +26,6 @@ Include affected version/commit, operating system, reproduction steps, expected/
 - No cloud endpoint is required for core functionality.
 - Source document contents are omitted from exported reports.
 - Full private paths are not returned as report metadata.
-- Failed report/settings export destination validation uses a generic user-facing error and does not echo the missing directory path.
 - Tauri capabilities are limited to core behavior, native file dialogs, and explicit external links.
 - Report and settings export use a temporary file plus rename to reduce partial-write risk.
 - Settings restore is capped at 64 KiB and validates version, fields, ranges, and bounded keyword exclusions before use.
@@ -47,7 +46,7 @@ Security-sensitive changes must preserve these boundaries:
 3. Keep filesystem work behind explicit user-selected paths or established local application storage.
 4. Do not add network transmission of analyzed text, report contents, recent metadata, or settings as an incidental feature.
 5. Bound collections and imported file sizes before expensive processing when practical.
-6. Add a regression test for every validation, disclosure, or escaping defect fixed.
+6. Add a regression test for every validation or escaping defect fixed.
 
 ## Threat boundary
 

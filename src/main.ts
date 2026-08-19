@@ -13,12 +13,14 @@ import {
   saveRecentFiles,
   type RecentFileEntry,
 } from "./lib/recentFiles";
+import { mountMarkdownExportUi } from "./report-export-ui";
 import { defaultSettings, loadSettings, parseSettings, saveSettings } from "./state";
 import type {
   AnalysisOptions,
   AnalysisReport,
   AppSettings,
   FrequencyItem,
+  ReportExportOptions,
   ThemePreference,
 } from "./types";
 import "./styles.css";
@@ -242,6 +244,7 @@ const recentFilesList = get<HTMLElement>("recentFilesList");
 const comparisonMeta = get<HTMLElement>("comparisonMeta");
 const comparisonMetricsBody = get<HTMLTableSectionElement>("comparisonMetricsBody");
 const comparisonKeywords = get<HTMLElement>("comparisonKeywords");
+const markdownExportUi = mountMarkdownExportUi((options) => void exportReport("markdown", options));
 
 let settings = loadSettings();
 if (!settings.recentFilesEnabled) clearRecentFiles();
@@ -464,7 +467,10 @@ async function reanalyzeActiveFile(): Promise<void> {
   }
 }
 
-async function exportReport(format: "json" | "markdown"): Promise<void> {
+async function exportReport(
+  format: "json" | "markdown",
+  options?: ReportExportOptions,
+): Promise<void> {
   if (!report) return;
   try {
     const extension = format === "json" ? "json" : "md";
@@ -474,7 +480,12 @@ async function exportReport(format: "json" | "markdown"): Promise<void> {
       filters: [{ name: format === "json" ? "JSON" : "Markdown", extensions: [extension] }],
     });
     if (!path) return;
-    await invoke("export_report", { path, report, format });
+    await invoke("export_report", {
+      path,
+      report,
+      format,
+      options: format === "markdown" ? options ?? null : null,
+    });
     setStatus(en.reportExported);
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
@@ -589,7 +600,7 @@ function runQuickAction(id: QuickActionId): void {
       void exportReport("json");
       break;
     case "export-markdown":
-      void exportReport("markdown");
+      markdownExportUi.open();
       break;
     case "compare":
       void compareReport();
@@ -712,7 +723,7 @@ get<HTMLButtonElement>("openButton").onclick = () => void openFile();
 get<HTMLButtonElement>("clearButton").onclick = clear;
 input.addEventListener("input", schedule);
 exportJson.onclick = () => void exportReport("json");
-exportMd.onclick = () => void exportReport("markdown");
+exportMd.onclick = markdownExportUi.open;
 compareButton.onclick = () => void compareReport();
 get<HTMLButtonElement>("quickActionsButton").onclick = openQuickActions;
 get<HTMLButtonElement>("settingsButton").onclick = () => {
@@ -789,7 +800,7 @@ window.addEventListener("keydown", (event) => {
     void openFile();
   } else if (key === "e" && report) {
     event.preventDefault();
-    void exportReport("markdown");
+    markdownExportUi.open();
   } else if (key === "k") {
     event.preventDefault();
     input.focus();

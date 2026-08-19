@@ -8,6 +8,19 @@ export interface AnalysisOptions {
   keywordExclusions: string[];
 }
 
+export interface AnalysisPreset extends AnalysisOptions {
+  name: string;
+}
+
+export interface ReportExportOptions {
+  includeSourceMetadata: boolean;
+  includeCoreMetrics: boolean;
+  includeKeywords: boolean;
+  includeBigrams: boolean;
+  includeTrigrams: boolean;
+  includeWhitespace: boolean;
+}
+
 export interface SourceInfo {
   kind: "pasted" | "file";
   displayName: string | null;
