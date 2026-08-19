@@ -3,15 +3,20 @@ import { describe, expect, it } from "vitest";
 import type { AnalysisReport, FrequencyItem } from "../types";
 import { comparisonMetrics, keywordDeltas } from "./comparison";
 
-function report(words: number, uniqueWords: number, keywords: FrequencyItem[]): AnalysisReport {
+function report(
+  words: number,
+  uniqueWords: number,
+  keywords: FrequencyItem[],
+  version = 2,
+): AnalysisReport {
   return {
-    version: 1,
+    version,
     source: { kind: "pasted", displayName: null, mode: "memory", fileSize: null },
     encoding: null,
     stats: {
       words,
       uniqueWords,
-      maxWordCharacters: words > 0 ? 8 : 0,
+      maxWordCharacters: words > 0 && version >= 2 ? 8 : 0,
       characters: words * 5,
       graphemes: words * 5,
       bytes: words * 5,
@@ -50,6 +55,14 @@ describe("report comparison", () => {
       delta: 5,
     });
     expect(metrics.find((item) => item.key === "uniqueWords")?.delta).toBe(2);
+  });
+
+  it("omits vocabulary deltas when a legacy report lacks that schema", () => {
+    const current = report(20, 12, []);
+    const baseline = report(15, 0, [], 1);
+    expect(comparisonMetrics(current, baseline).some((item) => item.key === "uniqueWords")).toBe(
+      false,
+    );
   });
 
   it("ranks changed keywords by absolute count delta", () => {
