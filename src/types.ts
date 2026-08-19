@@ -81,4 +81,5 @@ export interface AppSettings {
   topNgrams: number;
   keywordExclusions: string[];
   reducedMotion: boolean;
+  recentFilesEnabled: boolean;
 }
