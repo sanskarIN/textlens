@@ -326,11 +326,12 @@ mod tests {
 
     #[test]
     fn missing_destination_error_does_not_disclose_path() {
-        let missing = std::env::temp_dir().join("textlens-missing-report-destination");
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing");
         let path = missing.join("report.json");
         let report = analyze_text("hello", AnalysisOptions::default());
         let error = write_report(&path, &report, "json").unwrap_err();
         assert!(matches!(error, AppError::MissingDestination));
-        assert!(!error.to_string().contains(&missing.to_string_lossy().to_string()));
+        assert!(!error.to_string().contains(missing.to_string_lossy().as_ref()));
     }
 }
