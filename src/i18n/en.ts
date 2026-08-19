@@ -119,6 +119,15 @@ export const en = {
   restoreSettings: "Restore settings",
   restoreDefaults: "Restore defaults",
   saveSettings: "Save settings",
+  updates: "Updates",
+  updatesBody:
+    "TextLens does not contact an update server in the background. Check the official GitHub Releases page when you choose.",
+  checkReleases: "Open GitHub Releases",
+  storageSessionOnly:
+    "Local preference storage is unavailable. Text analysis still works, but preferences are session-only.",
+  startupFailedTitle: "TextLens could not start",
+  startupFailedBody:
+    "The application hit a local startup error. Restart TextLens; if the problem continues, use the support details in the project documentation.",
   aboutDescription:
     "Open-source, privacy-first desktop word counting and text diagnostics built with Rust, Tauri, TypeScript, and Vite.",
   license: "License",
