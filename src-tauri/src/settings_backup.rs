@@ -87,7 +87,7 @@ fn validate_destination(path: &Path) -> Result<(), AppError> {
         return Err(AppError::InvalidDestination);
     };
     if !parent.as_os_str().is_empty() && !parent.exists() {
-        return Err(AppError::MissingDestination(parent.to_path_buf()));
+        return Err(AppError::MissingDestination);
     }
     Ok(())
 }
@@ -213,5 +213,15 @@ mod tests {
         )
         .unwrap();
         assert!(read(&path).is_err());
+    }
+
+    #[test]
+    fn missing_destination_error_does_not_disclose_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing");
+        let path = missing.join("settings.json");
+        let error = write(&path, sample_settings()).unwrap_err();
+        assert!(matches!(error, AppError::MissingDestination));
+        assert!(!error.to_string().contains(missing.to_string_lossy().as_ref()));
     }
 }
