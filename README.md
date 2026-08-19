@@ -24,14 +24,16 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 
 ## Features
 
-- Word, character, grapheme, sentence, paragraph, line, and byte counts.
+- Word, unique-word, longest-word, character, grapheme, sentence, paragraph, line, and byte counts.
 - Configurable reading-time and speaking-time estimates.
 - Ranked keyword frequency, bigrams, and trigrams.
 - Whitespace diagnostics, blank-line counts, trailing-whitespace counts, and LF/CRLF/CR detection.
 - Live analysis for pasted text.
 - Local file analysis with UTF-8, UTF-16 BOM handling, and a clearly labelled Windows-1252 safe fallback.
+- Invalid UTF-8 and undefined Windows-1252 bytes are surfaced through an encoding warning rather than silently hidden.
 - Streaming analysis for large UTF-8/Windows-1252 files to avoid loading the entire document at once.
 - JSON and Markdown report export; source document text is deliberately excluded from reports.
+- Versioned settings backup/restore with strict validation and a size limit.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
 - No account, analytics SDK, cloud API, or donation gate.
@@ -46,7 +48,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 
 ## Tech stack
 
-- **Rust** — analysis engine, file decoding/streaming, report writing.
+- **Rust** — analysis engine, file decoding/streaming, report writing, settings backup validation.
 - **Tauri 2** — native desktop shell and secure IPC.
 - **TypeScript** — strongly typed UI behavior.
 - **Vite** — frontend development/build.
@@ -110,14 +112,15 @@ commands.rs
       │
       ├── domain/analyzer.rs  ← pure counting/frequency logic
       ├── fileio.rs           ← encoding + streaming adapter
-      └── report.rs           ← privacy-safe JSON/Markdown export
+      ├── report.rs           ← privacy-safe JSON/Markdown export
+      └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
 Architecture decisions are recorded in [docs/adr](docs/adr).
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, and exported reports intentionally omit source document contents. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
