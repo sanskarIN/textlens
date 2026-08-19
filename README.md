@@ -42,6 +42,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Optional recent-file metadata history, disabled by default, storing only display filename, size, and opened time—never full paths or source text.
 - Per-entry and clear-all recent-history controls; disabling the option deletes stored metadata.
 - Keyboard-first searchable Quick actions for common workflows plus direct desktop shortcuts.
+- Runtime About-version display backed by packaged Tauri metadata plus a dependency-free release-version consistency gate.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
 - No account, analytics SDK, cloud API, or donation gate.
@@ -82,7 +83,7 @@ The Markdown picker is used by the visible export button, Quick actions, and `Ct
 - **TypeScript** — strongly typed UI behavior, report comparison/customization, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
-- **GitHub Actions** — CI, security checks, and release automation.
+- **GitHub Actions** — CI, security checks, release automation, and version-consistency enforcement.
 
 ## Quick start
 
@@ -101,8 +102,11 @@ npm run tauri:dev
 
 ```bash
 npm install
+npm run version:check
 npm run check
 npm run lint
+npm run format:check
+npm run docs:check
 npm run test
 npm run build
 
@@ -124,6 +128,8 @@ Full guides:
 - [Performance](docs/performance.md)
 
 ## Build and release
+
+Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart.
 
 ```bash
 npm run tauri:build
@@ -162,9 +168,11 @@ Do not report security vulnerabilities in a public issue.
 ## Testing
 
 ```bash
+npm run version:check
 npm run check
 npm run lint
 npm run format:check
+npm run docs:check
 npm run test
 npm run build
 cd src-tauri
