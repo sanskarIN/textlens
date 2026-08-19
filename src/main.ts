@@ -128,7 +128,7 @@ app.innerHTML = `
   <form id="settingsForm" method="dialog">
     <div class="heading">
       <div><p class="eyebrow">${en.preferences}</p><h2>${en.settings}</h2></div>
-      <button value="cancel" class="ghost" aria-label="${en.closeSettings}">${en.close}</button>
+      <button id="closeSettingsButton" type="button" class="ghost" aria-label="${en.closeSettings}">${en.close}</button>
     </div>
     <div class="settings">
       <label>${en.theme}
@@ -697,6 +697,7 @@ get<HTMLButtonElement>("settingsButton").onclick = () => {
   syncSettings();
   settingsDialog.showModal();
 };
+get<HTMLButtonElement>("closeSettingsButton").onclick = () => settingsDialog.close();
 get<HTMLButtonElement>("aboutButton").onclick = () => aboutDialog.showModal();
 get<HTMLButtonElement>("closeAboutButton").onclick = () => aboutDialog.close();
 get<HTMLButtonElement>("closeCompareButton").onclick = () => compareDialog.close();
