@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -32,12 +30,25 @@ pub enum AppError {
     InvalidSettingsData,
     #[error("The destination must have a parent directory.")]
     InvalidDestination,
-    #[error("The destination directory does not exist: {0}")]
-    MissingDestination(PathBuf),
+    #[error("The destination directory does not exist.")]
+    MissingDestination,
     #[error("Unsupported report format: {0}")]
     UnsupportedFormat(String),
     #[error("Background analysis task failed: {0}")]
     BackgroundTask(String),
     #[error("The report could not be serialized.")]
     Serialize(#[source] serde_json::Error),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppError;
+
+    #[test]
+    fn missing_destination_error_never_contains_a_path() {
+        assert_eq!(
+            AppError::MissingDestination.to_string(),
+            "The destination directory does not exist."
+        );
+    }
 }
