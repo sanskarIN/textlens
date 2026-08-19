@@ -37,7 +37,7 @@ Potentially blocking filesystem work runs through Tauri's blocking runtime.
 
 ### UI
 
-The TypeScript UI renders the editor, metrics, keyword/n-gram lists, diagnostics, local settings, report comparison, Quick actions, About, support, and funding links. It does not maintain a second analysis algorithm.
+The TypeScript UI renders the editor, metrics, keyword/n-gram lists, diagnostics, local settings, opt-in recent-file metadata, report comparison, Quick actions, About, support, and funding links. It does not maintain a second analysis algorithm.
 
 Pure helpers under `src/lib` provide independently testable presentation behavior:
 
@@ -45,6 +45,7 @@ Pure helpers under `src/lib` provide independently testable presentation behavio
 - `presentation.ts` — safe display helpers and metric rows.
 - `comparison.ts` — report metric and top-keyword deltas with legacy-schema awareness.
 - `quickActions.ts` — deterministic local Quick actions filtering.
+- `recentFiles.ts` — bounded, path-free recent-file metadata parsing and storage helpers.
 
 ## Data flow
 
@@ -53,6 +54,8 @@ Typed/pasted text ─────┐
                       ├─> Tauri command ─> domain analyzer ─> report DTO ─> UI
 Selected local file ──┘        │
                                └─> file adapter / streaming decoder
+                                     │
+                                     └─> display name + size ─> optional local metadata history
 
 Report DTO ─> export command ─> JSON or Markdown ─> user-selected local path
 Saved JSON report ─> import command ─> size/schema/data validation ─> comparison helper ─> UI
@@ -73,6 +76,8 @@ Report import is deliberately separate from ordinary file analysis. A selected r
 
 Raw source text is intentionally absent from `AnalysisReport`. File analysis returns a display filename but not the full source path. Report comparison loads only the aggregate JSON export. Settings backups contain preferences only and are independent from analysis reports. Quick action search is local UI state.
 
+Recent-file history is a separate, opt-in frontend store. It accepts only a display filename, size, and timestamp, is capped at 10 entries, rejects names containing path separators, and is deleted when the preference is disabled. The boolean preference is backup-able; the metadata entries are not.
+
 ## Keyword exclusions
 
 Keyword exclusions are analysis options derived from local settings. They are normalized and bounded at the Rust boundary. They filter only the final keyword ranking; the complete token stream still drives word/vocabulary metrics and n-grams. This prevents a preference intended for presentation quality from silently redefining core counts.
@@ -85,6 +90,8 @@ Files above the configured threshold use line-oriented streaming when detected a
 
 The analysis report and settings backup each include an explicit version boundary. Future schema changes should be deliberate, tested against older fixtures, and documented. New analysis behavior belongs in domain modules rather than command/UI code. New Quick actions must invoke established application behavior instead of duplicating it.
 
+New local persistence must be privacy-reviewed before introduction: record only fields required by a coherent feature, set explicit bounds, provide clear/delete behavior, and prefer opt-in when metadata can reveal user activity.
+
 ## ADRs
 
 - ADR-0001: Rust + Tauri modular monolith.
@@ -94,3 +101,4 @@ The analysis report and settings backup each include an explicit version boundar
 - ADR-0005: Versioned report import and comparison.
 - ADR-0006: Local keyword exclusions.
 - ADR-0007: Keyboard-first Quick actions.
+- ADR-0008: Opt-in recent file metadata.
