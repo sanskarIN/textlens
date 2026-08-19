@@ -247,6 +247,7 @@ let settings = loadSettings();
 if (!settings.recentFilesEnabled) clearRecentFiles();
 let recentFiles: RecentFileEntry[] = settings.recentFilesEnabled ? loadRecentFiles() : [];
 let report: AnalysisReport | null = null;
+let activeFilePath: string | null = null;
 let ngram: 2 | 3 = 2;
 let timer: number | undefined;
 let sequence = 0;
@@ -377,6 +378,7 @@ function render(current: AnalysisReport | null): void {
 
 function clear(): void {
   sequence += 1;
+  activeFilePath = null;
   input.value = "";
   report = null;
   badge.textContent = en.pastedText;
@@ -387,6 +389,7 @@ function clear(): void {
 
 function schedule(): void {
   window.clearTimeout(timer);
+  activeFilePath = null;
   const current = ++sequence;
   if (!input.value) {
     clear();
@@ -426,6 +429,7 @@ async function openFile(): Promise<void> {
     setStatus(en.analyzingFile);
     const next = await invoke<AnalysisReport>("analyze_file", { path, options: opts() });
     sequence += 1;
+    activeFilePath = path;
     input.value = "";
     report = next;
     if (settings.recentFilesEnabled && next.source.displayName && next.source.fileSize !== null) {
@@ -441,6 +445,22 @@ async function openFile(): Promise<void> {
     setStatus(next.source.mode === "streaming" ? en.largeFileAnalyzed : en.fileAnalyzed);
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
+  }
+}
+
+async function reanalyzeActiveFile(): Promise<void> {
+  const path = activeFilePath;
+  if (!path) return;
+  try {
+    setStatus(en.analyzingFile);
+    const next = await invoke<AnalysisReport>("analyze_file", { path, options: opts() });
+    if (activeFilePath !== path) return;
+    report = next;
+    badge.textContent = `${next.source.displayName ?? "File"} · ${next.source.mode}`;
+    render(report);
+    setStatus(next.source.mode === "streaming" ? en.largeFileAnalyzed : en.fileAnalyzed);
+  } catch (error) {
+    if (activeFilePath === path) setStatus(`Error: ${String(error)}`, true);
   }
 }
 
@@ -623,6 +643,7 @@ async function restoreSettings(): Promise<void> {
     renderRecentFiles();
     setStatus(en.settingsRestored);
     if (input.value) schedule();
+    else if (activeFilePath) void reanalyzeActiveFile();
   } catch (error) {
     setStatus(`Error: ${String(error)}`, true);
   }
@@ -677,6 +698,7 @@ function saveSettingsForm(event: Event): void {
   renderRecentFiles();
   setStatus(en.settingsSaved);
   if (input.value) schedule();
+  else if (activeFilePath) void reanalyzeActiveFile();
 }
 
 function removeRecentFile(index: number): void {
