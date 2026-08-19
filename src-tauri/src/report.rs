@@ -1,9 +1,14 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
 use crate::{
-    domain::models::{AnalysisReport, FrequencyItem},
+    domain::models::{AnalysisReport, FrequencyItem, SourceKind},
     error::AppError,
 };
+
+const MAX_REPORT_IMPORT_BYTES: u64 = 512 * 1024;
+const MAX_FREQUENCY_ITEMS: usize = 50;
+const MAX_FREQUENCY_TEXT_BYTES: usize = 4 * 1024;
+const MAX_METADATA_TEXT_BYTES: usize = 4 * 1024;
 
 pub fn write_report(path: &Path, report: &AnalysisReport, format: &str) -> Result<(), AppError> {
     validate_destination(path)?;
@@ -13,6 +18,87 @@ pub fn write_report(path: &Path, report: &AnalysisReport, format: &str) -> Resul
         other => return Err(AppError::UnsupportedFormat(other.into())),
     };
     atomic_write(path, content.as_bytes())
+}
+
+pub fn read_report(path: &Path) -> Result<AnalysisReport, AppError> {
+    let metadata = fs::metadata(path).map_err(AppError::ReadReport)?;
+    if !metadata.is_file() {
+        return Err(AppError::NotAFile);
+    }
+    if metadata.len() > MAX_REPORT_IMPORT_BYTES {
+        return Err(AppError::ReportTooLarge);
+    }
+
+    let bytes = fs::read(path).map_err(AppError::ReadReport)?;
+    let report: AnalysisReport = serde_json::from_slice(&bytes).map_err(AppError::InvalidReport)?;
+    validate_report(&report)?;
+    Ok(report)
+}
+
+fn validate_report(report: &AnalysisReport) -> Result<(), AppError> {
+    if report.version != 1 {
+        return Err(AppError::UnsupportedReportVersion(report.version));
+    }
+
+    if report.stats.unique_words > report.stats.words
+        || report.stats.graphemes > report.stats.characters
+        || (report.stats.words == 0 && report.stats.max_word_characters != 0)
+        || (report.stats.words > 0 && report.stats.max_word_characters == 0)
+    {
+        return Err(AppError::InvalidReportData);
+    }
+
+    if report.source.kind == SourceKind::Pasted && report.source.file_size.is_some() {
+        return Err(AppError::InvalidReportData);
+    }
+    if report
+        .source
+        .display_name
+        .as_ref()
+        .is_some_and(|value| value.len() > MAX_METADATA_TEXT_BYTES || value.contains('\0'))
+    {
+        return Err(AppError::InvalidReportData);
+    }
+    if report
+        .encoding
+        .as_ref()
+        .is_some_and(|value| value.name.is_empty() || value.name.len() > MAX_METADATA_TEXT_BYTES)
+    {
+        return Err(AppError::InvalidReportData);
+    }
+    if !matches!(
+        report.whitespace.line_endings.dominant.as_str(),
+        "LF" | "CRLF" | "CR" | "None"
+    ) {
+        return Err(AppError::InvalidReportData);
+    }
+
+    validate_frequency_items(&report.keywords, report.stats.words)?;
+    validate_frequency_items(&report.bigrams, report.stats.words.saturating_sub(1))?;
+    validate_frequency_items(&report.trigrams, report.stats.words.saturating_sub(2))?;
+
+    Ok(())
+}
+
+fn validate_frequency_items(items: &[FrequencyItem], possible_positions: usize) -> Result<(), AppError> {
+    if items.len() > MAX_FREQUENCY_ITEMS || (possible_positions == 0 && !items.is_empty()) {
+        return Err(AppError::InvalidReportData);
+    }
+
+    for item in items {
+        if item.text.is_empty()
+            || item.text.len() > MAX_FREQUENCY_TEXT_BYTES
+            || item.text.contains('\0')
+            || item.count == 0
+            || item.count > possible_positions
+            || !item.percentage.is_finite()
+            || !(0.0..=100.0).contains(&item.percentage)
+        {
+            return Err(AppError::InvalidReportData);
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_destination(path: &Path) -> Result<(), AppError> {
@@ -33,30 +119,30 @@ fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), AppError> {
     let temp = path.with_file_name(format!(".{name}.tmp"));
     let backup = path.with_file_name(format!(".{name}.textlens-backup"));
 
-    std::fs::write(&temp, contents).map_err(AppError::WriteReport)?;
+    fs::write(&temp, contents).map_err(AppError::WriteReport)?;
     if !path.exists() {
-        return std::fs::rename(&temp, path).map_err(|error| {
-            let _ = std::fs::remove_file(&temp);
+        return fs::rename(&temp, path).map_err(|error| {
+            let _ = fs::remove_file(&temp);
             AppError::WriteReport(error)
         });
     }
 
     if backup.exists() {
-        std::fs::remove_file(&backup).map_err(AppError::WriteReport)?;
+        fs::remove_file(&backup).map_err(AppError::WriteReport)?;
     }
-    std::fs::rename(path, &backup).map_err(|error| {
-        let _ = std::fs::remove_file(&temp);
+    fs::rename(path, &backup).map_err(|error| {
+        let _ = fs::remove_file(&temp);
         AppError::WriteReport(error)
     })?;
 
-    match std::fs::rename(&temp, path) {
+    match fs::rename(&temp, path) {
         Ok(()) => {
-            let _ = std::fs::remove_file(&backup);
+            let _ = fs::remove_file(&backup);
             Ok(())
         }
         Err(error) => {
-            let _ = std::fs::rename(&backup, path);
-            let _ = std::fs::remove_file(&temp);
+            let _ = fs::rename(&backup, path);
+            let _ = fs::remove_file(&temp);
             Err(AppError::WriteReport(error))
         }
     }
@@ -163,14 +249,54 @@ mod tests {
     fn replaces_existing_export() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("report.json");
-        std::fs::write(&path, "old").unwrap();
+        fs::write(&path, "old").unwrap();
         let report = analyze_text("hello world", AnalysisOptions::default());
         write_report(&path, &report, "json").unwrap();
-        assert!(std::fs::read_to_string(&path)
+        assert!(fs::read_to_string(&path)
             .unwrap()
             .contains("\"words\": 2"));
         assert!(!path
             .with_file_name(".report.json.textlens-backup")
             .exists());
+    }
+
+    #[test]
+    fn exported_json_round_trips_through_import_validation() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        let expected = analyze_text("alpha beta alpha", AnalysisOptions::default());
+        write_report(&path, &expected, "json").unwrap();
+        assert_eq!(read_report(&path).unwrap(), expected);
+    }
+
+    #[test]
+    fn rejects_unsupported_report_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        let mut report = analyze_text("hello", AnalysisOptions::default());
+        report.version = 2;
+        fs::write(&path, serde_json::to_vec(&report).unwrap()).unwrap();
+        assert!(matches!(
+            read_report(&path),
+            Err(AppError::UnsupportedReportVersion(2))
+        ));
+    }
+
+    #[test]
+    fn rejects_inconsistent_report_metrics() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        let mut report = analyze_text("hello", AnalysisOptions::default());
+        report.stats.unique_words = 2;
+        fs::write(&path, serde_json::to_vec(&report).unwrap()).unwrap();
+        assert!(matches!(read_report(&path), Err(AppError::InvalidReportData)));
+    }
+
+    #[test]
+    fn rejects_oversized_report_before_parsing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        fs::write(&path, vec![b' '; MAX_REPORT_IMPORT_BYTES as usize + 1]).unwrap();
+        assert!(matches!(read_report(&path), Err(AppError::ReportTooLarge)));
     }
 }
