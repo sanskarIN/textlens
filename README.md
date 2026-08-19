@@ -28,6 +28,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Configurable reading-time and speaking-time estimates.
 - Ranked keyword frequency, bigrams, and trigrams.
 - Local keyword-exclusion lists for hiding unhelpful words from keyword summaries without changing core counts or n-grams.
+- Reusable device-local analysis presets for reading/speaking rates, result limits, and keyword exclusions.
 - Whitespace diagnostics, blank-line counts, trailing-whitespace counts, and LF/CRLF/CR detection.
 - Live analysis for pasted text.
 - Local file analysis with UTF-8, UTF-16 BOM handling, and a clearly labelled Windows-1252 safe fallback.
@@ -53,9 +54,11 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 | `Ctrl/Cmd + E` | Export the current report as Markdown |
 | `Ctrl/Cmd + K` | Focus the text editor |
 
-## Privacy-first recent metadata
+## Privacy-first local preferences
 
 Recent-file history is an explicit opt-in. It is intentionally informational rather than a reopen list, because reopening would require retaining a filesystem path. TextLens stores at most 10 metadata entries, collapses duplicate display names to the newest entry, and clears the history when the preference is disabled or defaults are restored.
+
+Analysis presets are also local-only. A preset stores only its display name plus analysis configuration: reading/speaking rates, result limits, and keyword exclusions. It never stores document contents, source paths, recent-file entries, reports, theme, reduced-motion choice, or the recent-file-history opt-in. Up to 12 presets are retained and each name is bounded to 48 Unicode scalar values.
 
 ## Supported platforms
 
@@ -69,7 +72,7 @@ Recent-file history is an explicit opt-in. It is intentionally informational rat
 
 - **Rust** — analysis engine, file decoding/streaming, report validation/import/export, settings backup validation.
 - **Tauri 2** — native desktop shell and secure IPC.
-- **TypeScript** — strongly typed UI behavior, report comparison, Quick actions, recent-metadata validation, and presentation logic.
+- **TypeScript** — strongly typed UI behavior, report comparison, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
 - **GitHub Actions** — CI, security checks, and release automation.
@@ -135,7 +138,7 @@ commands.rs
       └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
-The frontend keeps comparison, Quick actions, recent-metadata handling, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+The frontend keeps comparison, Quick actions, recent-metadata handling, local analysis presets, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
 
 ## Report compatibility
 
@@ -145,7 +148,7 @@ Imported reports are size-limited and validated before they reach the UI. Compar
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
@@ -163,7 +166,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 ```
 
-See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, recent metadata, Quick actions, and large-file checks.
+See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, local analysis presets, recent metadata, Quick actions, and large-file checks.
 
 ## Contributing
 
