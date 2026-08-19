@@ -123,6 +123,10 @@ app.innerHTML = `
       <label>${en.topKeywords}<input id="topKeywordsInput" type="number" min="1" max="50"></label>
       <label>${en.topNgrams}<input id="topNgramsInput" type="number" min="1" max="50"></label>
       <label class="check"><input id="reducedMotionInput" type="checkbox">${en.reduceMotion}</label>
+      <label class="settings-wide">${en.keywordExclusions}
+        <textarea id="keywordExclusionsInput" rows="3" maxlength="6600" placeholder="${en.keywordExclusionsPlaceholder}" aria-describedby="keywordExclusionsHint"></textarea>
+        <small id="keywordExclusionsHint">${en.keywordExclusionsHint}</small>
+      </label>
     </div>
     <div class="privacy">
       <h3>${en.privacyAndData}</h3>
@@ -214,6 +218,7 @@ const opts = (): AnalysisOptions => ({
   speakingWpm: settings.speakingWpm,
   topKeywords: settings.topKeywords,
   topNgrams: settings.topNgrams,
+  keywordExclusions: settings.keywordExclusions,
 });
 
 function setStatus(message: string, error = false): void {
@@ -467,6 +472,7 @@ function syncSettings(): void {
   get<HTMLInputElement>("speakingWpmInput").value = String(settings.speakingWpm);
   get<HTMLInputElement>("topKeywordsInput").value = String(settings.topKeywords);
   get<HTMLInputElement>("topNgramsInput").value = String(settings.topNgrams);
+  get<HTMLTextAreaElement>("keywordExclusionsInput").value = settings.keywordExclusions.join(", ");
   get<HTMLInputElement>("reducedMotionInput").checked = settings.reducedMotion;
 }
 
@@ -482,14 +488,18 @@ function applySettings(): void {
 
 function saveSettingsForm(event: Event): void {
   event.preventDefault();
-  settings = {
+  const keywordExclusions = get<HTMLTextAreaElement>("keywordExclusionsInput")
+    .value.split(/[\n,]+/)
+    .map((value) => value.trim());
+  settings = parseSettings({
     theme: get<HTMLSelectElement>("themeSelect").value as ThemePreference,
     readingWpm: bounded("readingWpmInput", 30, 1000, settings.readingWpm),
     speakingWpm: bounded("speakingWpmInput", 30, 1000, settings.speakingWpm),
     topKeywords: bounded("topKeywordsInput", 1, 50, settings.topKeywords),
     topNgrams: bounded("topNgramsInput", 1, 50, settings.topNgrams),
+    keywordExclusions,
     reducedMotion: get<HTMLInputElement>("reducedMotionInput").checked,
-  };
+  });
   saveSettings(settings);
   applySettings();
   settingsDialog.close();
@@ -516,7 +526,7 @@ get<HTMLButtonElement>("dismissOnboarding").onclick = () => {
   input.focus();
 };
 get<HTMLButtonElement>("resetSettingsButton").onclick = () => {
-  settings = { ...defaultSettings };
+  settings = { ...defaultSettings, keywordExclusions: [] };
   saveSettings(settings);
   applySettings();
   syncSettings();
