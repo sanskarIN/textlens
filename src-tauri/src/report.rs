@@ -323,4 +323,14 @@ mod tests {
         fs::write(&path, vec![b' '; MAX_REPORT_IMPORT_BYTES as usize + 1]).unwrap();
         assert!(matches!(read_report(&path), Err(AppError::ReportTooLarge)));
     }
+
+    #[test]
+    fn missing_destination_error_does_not_disclose_path() {
+        let missing = std::env::temp_dir().join("textlens-missing-report-destination");
+        let path = missing.join("report.json");
+        let report = analyze_text("hello", AnalysisOptions::default());
+        let error = write_report(&path, &report, "json").unwrap_err();
+        assert!(matches!(error, AppError::MissingDestination));
+        assert!(!error.to_string().contains(&missing.to_string_lossy().to_string()));
+    }
 }
