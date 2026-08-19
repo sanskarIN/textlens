@@ -1,5 +1,5 @@
 import { parseAnalysisOptions } from "../state";
-import type { AnalysisPreset, AppSettings } from "../types";
+import type { AnalysisOptions, AnalysisPreset, AppSettings } from "../types";
 
 const STORAGE_KEY = "textlens.analysis-presets.v1";
 const MAX_PRESET_NAME_CHARACTERS = 48;
@@ -31,14 +31,22 @@ export function loadAnalysisPresets(): AnalysisPreset[] {
   }
 }
 
-export function saveAnalysisPresets(presets: AnalysisPreset[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parseAnalysisPresets(presets)));
+export function saveAnalysisPresets(presets: AnalysisPreset[]): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parseAnalysisPresets(presets)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function createAnalysisPreset(name: string, settings: AppSettings): AnalysisPreset | null {
+export function createAnalysisPreset(
+  name: string,
+  options: AnalysisOptions,
+): AnalysisPreset | null {
   const boundedName = validName(name);
   if (!boundedName) return null;
-  return { name: boundedName, ...parseAnalysisOptions(settings) };
+  return { name: boundedName, ...parseAnalysisOptions(options) };
 }
 
 export function upsertAnalysisPreset(
