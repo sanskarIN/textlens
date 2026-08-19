@@ -110,7 +110,7 @@ fn validate_destination(path: &Path) -> Result<(), AppError> {
         return Err(AppError::InvalidDestination);
     };
     if !parent.as_os_str().is_empty() && !parent.exists() {
-        return Err(AppError::MissingDestination(parent.to_path_buf()));
+        return Err(AppError::MissingDestination);
     }
     Ok(())
 }
