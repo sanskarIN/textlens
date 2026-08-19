@@ -50,6 +50,17 @@ pub async fn export_report(
 }
 
 #[tauri::command]
+pub async fn import_report(path: String) -> Result<AnalysisReport, String> {
+    tracing::debug!(operation = "import_report", "report import requested");
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::report::read_report(PathBuf::from(path).as_path())
+    })
+    .await
+    .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn export_settings(path: String, settings: SettingsData) -> Result<(), String> {
     tracing::debug!(operation = "export_settings", "settings backup requested");
     tauri::async_runtime::spawn_blocking(move || {
