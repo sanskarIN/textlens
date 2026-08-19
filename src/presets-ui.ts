@@ -163,8 +163,8 @@ function initializePresetUi(): void {
   });
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializePresetUi, { once: true });
-} else {
+if (document.readyState === "complete") {
   initializePresetUi();
+} else {
+  document.addEventListener("DOMContentLoaded", initializePresetUi, { once: true });
 }
