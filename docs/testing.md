@@ -10,12 +10,13 @@ Pure frontend helpers have unit tests. The UI delegates text analysis and valida
 
 Current frontend helper coverage includes:
 
-- settings parsing and bounds, including keyword exclusions;
+- settings parsing and bounds, including keyword exclusions and privacy-sensitive opt-ins;
 - numeric/byte/duration formatting;
 - HTML-safe presentation helpers;
 - report metric and top-keyword comparison deltas;
 - legacy-report comparison behavior for vocabulary metrics unavailable in schema v1;
-- Quick actions query filtering and multi-term matching.
+- Quick actions query filtering and multi-term matching;
+- recent-file metadata parsing, path rejection, numeric/timestamp validation, deduplication, and ten-entry bounds.
 
 ## Rust unit tests
 
@@ -28,7 +29,7 @@ Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode 
 
 Report-import tests cover current-schema round trips, schema-v1 compatibility, unsupported future versions, inconsistent metrics, and oversized inputs.
 
-Settings tests cover current backups, legacy backups without keyword exclusions, invalid exclusions, unknown fields, out-of-range values, and atomic replacement behavior.
+Settings tests cover current backups, legacy backups without newer preferences, invalid exclusions, unknown fields, out-of-range values, and atomic replacement behavior.
 
 ## Integration/property tests
 
@@ -37,6 +38,8 @@ cargo test --all-targets
 ```
 
 Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
+
+Checked-in synthetic fixtures under `src-tauri/tests/fixtures/` provide stable multilingual and difficult-punctuation inputs. Fixtures must remain fictional and must never contain private documents.
 
 ## Static checks
 
@@ -85,9 +88,14 @@ Before a release candidate:
 16. Open Quick actions with both the navigation button and `Ctrl/Cmd + Shift + P`; verify search is case-insensitive and multi-term filtering works.
 17. Verify report-dependent Quick actions remain visible but disabled before any analysis and become enabled after analysis.
 18. Execute focus, open, clear, export, compare, Settings, and About through Quick actions and verify they reuse the same behavior as visible controls.
-19. Test light/dark/system themes.
-20. Navigate all controls keyboard-only, including dialogs and Quick actions.
-21. Enable reduced motion.
-22. Test narrow window widths and horizontal comparison-table scrolling.
+19. Confirm Recent files is hidden with default settings and no metadata storage key is retained.
+20. Enable recent-file metadata, open more than 10 fictional files, and confirm only the newest 10 display-name/size/time entries remain.
+21. Confirm recent metadata never includes a directory or full path; remove one entry and then clear all history.
+22. Disable recent-file metadata and confirm stored history is deleted immediately. Restore defaults and verify the same deletion behavior.
+23. Back up settings with recent metadata enabled and verify the backup stores only the boolean preference, not recent-file entries.
+24. Test light/dark/system themes.
+25. Navigate all controls keyboard-only, including dialogs, Quick actions, and recent-history controls.
+26. Enable reduced motion.
+27. Test narrow window widths and horizontal comparison-table scrolling.
 
 Never commit real private documents as fixtures.
