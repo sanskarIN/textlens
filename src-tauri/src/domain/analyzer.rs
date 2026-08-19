@@ -5,6 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use super::models::{
     AnalysisMode, AnalysisOptions, AnalysisReport, EncodingInfo, FrequencyItem,
     LineEndingDiagnostics, SourceInfo, SourceKind, TextStats, WhitespaceDiagnostics,
+    CURRENT_REPORT_VERSION,
 };
 
 const SENTENCE_ENDERS: &[char] = &['.', '!', '?', '…', '。', '！', '？'];
@@ -133,7 +134,7 @@ impl AnalysisAccumulator {
         );
 
         AnalysisReport {
-            version: 1,
+            version: CURRENT_REPORT_VERSION,
             source,
             encoding,
             stats: self.stats,
@@ -328,6 +329,7 @@ mod tests {
     #[test]
     fn core_counts() {
         let r = analyze_text("Hello world.\n\nNext line!", AnalysisOptions::default());
+        assert_eq!(r.version, CURRENT_REPORT_VERSION);
         assert_eq!(r.stats.words, 4);
         assert_eq!(r.stats.unique_words, 4);
         assert_eq!(r.stats.max_word_characters, 5);
