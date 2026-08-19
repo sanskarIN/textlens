@@ -97,6 +97,9 @@ export const en = {
   presetDeleted: "Analysis preset deleted",
   presetNameRequired: "Enter a preset name before saving.",
   presetStorageError: "Analysis presets could not be saved to local storage.",
+  wordsPerMinuteUnit: "words/min",
+  keywordsUnit: "keywords",
+  ngramsUnit: "n-grams",
   privacyAndData: "Privacy & data",
   privacySettingsBody:
     "Document contents stay local. Preferences use local WebView storage. Export occurs only to a path you choose.",
