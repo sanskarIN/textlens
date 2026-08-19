@@ -37,7 +37,9 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Versioned JSON report schema with bounded, validated local report import and compatibility for legacy schema-v1 exports.
 - Compare the current analysis with a previously exported TextLens JSON report without loading source document content.
 - Versioned settings backup/restore with strict validation and a size limit.
-- Keyboard-first searchable quick actions for common workflows plus direct desktop shortcuts.
+- Optional recent-file metadata history, disabled by default, storing only display filename, size, and opened time—never full paths or source text.
+- Per-entry and clear-all recent-history controls; disabling the option deletes stored metadata.
+- Keyboard-first searchable Quick actions for common workflows plus direct desktop shortcuts.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
 - No account, analytics SDK, cloud API, or donation gate.
@@ -51,6 +53,10 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 | `Ctrl/Cmd + E` | Export the current report as Markdown |
 | `Ctrl/Cmd + K` | Focus the text editor |
 
+## Privacy-first recent metadata
+
+Recent-file history is an explicit opt-in. It is intentionally informational rather than a reopen list, because reopening would require retaining a filesystem path. TextLens stores at most 10 metadata entries, collapses duplicate display names to the newest entry, and clears the history when the preference is disabled or defaults are restored.
+
 ## Supported platforms
 
 | Platform | Target | Notes |
@@ -63,7 +69,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 
 - **Rust** — analysis engine, file decoding/streaming, report validation/import/export, settings backup validation.
 - **Tauri 2** — native desktop shell and secure IPC.
-- **TypeScript** — strongly typed UI behavior, report comparison, quick-action filtering, and presentation logic.
+- **TypeScript** — strongly typed UI behavior, report comparison, Quick actions, recent-metadata validation, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
 - **GitHub Actions** — CI, security checks, and release automation.
@@ -129,7 +135,7 @@ commands.rs
       └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
-The frontend keeps comparison, quick-action filtering, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+The frontend keeps comparison, Quick actions, recent-metadata handling, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
 
 ## Report compatibility
 
@@ -139,7 +145,7 @@ Imported reports are size-limited and validated before they reach the UI. Compar
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
@@ -157,7 +163,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 ```
 
-See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, quick-action, and large-file checks.
+See [docs/testing.md](docs/testing.md) for manual acceptance, report-import compatibility, Unicode, settings, recent metadata, Quick actions, and large-file checks.
 
 ## Contributing
 
