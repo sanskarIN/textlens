@@ -190,6 +190,7 @@ fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), AppError> {
     }
 }
 
+#[cfg(test)]
 fn render_markdown(r: &AnalysisReport) -> String {
     render_markdown_with_options(r, ReportExportOptions::default())
 }
