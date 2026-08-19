@@ -29,7 +29,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 
 ## 0.3 — Power-user workflows
 
-- [ ] Optional recent-file metadata history with opt-in and clear/delete controls.
+- [x] Optional recent-file metadata history with opt-in and clear/delete controls, without storing paths.
 - [x] Compare two analysis reports without storing source text.
 - [x] Custom exclusion/stop-word lists stored locally.
 - [x] Command palette / Quick actions for keyboard-first workflows.
