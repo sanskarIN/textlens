@@ -1,0 +1,48 @@
+{
+  "name": "textlens",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Privacy-first desktop text analysis with Rust and Tauri.",
+  "author": {
+    "name": "Sanskar",
+    "email": "sanskarin@outlook.in",
+    "url": "https://github.com/sanskarIN"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sanskarIN/textlens.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "lint": "eslint src vite.config.ts eslint.config.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.0.0",
+    "@tauri-apps/plugin-dialog": "2.0.0",
+    "@tauri-apps/plugin-opener": "2.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.0.0",
+    "@tauri-apps/cli": "2.0.0",
+    "@types/node": "22.0.0",
+    "eslint": "9.0.0",
+    "prettier": "3.0.0",
+    "typescript": "5.7.0",
+    "typescript-eslint": "8.0.0",
+    "vite": "7.0.0",
+    "vitest": "3.0.0"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
