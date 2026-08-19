@@ -1,12 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultSettings } from "../state";
 import type { AnalysisPreset } from "../types";
 import {
   MAX_ANALYSIS_PRESETS,
   applyAnalysisPreset,
   createAnalysisPreset,
+  loadAnalysisPresets,
   parseAnalysisPresets,
   removeAnalysisPreset,
+  saveAnalysisPresets,
   upsertAnalysisPreset,
 } from "./presets";
 
@@ -20,6 +22,10 @@ function preset(name: string, readingWpm = 238): AnalysisPreset {
     keywordExclusions: [],
   };
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("analysis presets", () => {
   it("parses names and bounded analysis options from untrusted storage", () => {
@@ -61,14 +67,12 @@ describe("analysis presets", () => {
     expect(parsed.some((item) => item.name === "writing")).toBe(false);
   });
 
-  it("creates a preset from current analysis settings only", () => {
+  it("creates a preset from current analysis options", () => {
     const created = createAnalysisPreset("  Proofreading  ", {
-      ...defaultSettings,
-      theme: "dark",
-      reducedMotion: true,
-      recentFilesEnabled: true,
       readingWpm: 320,
+      speakingWpm: 150,
       topKeywords: 24,
+      topNgrams: 10,
       keywordExclusions: ["the", "and"],
     });
 
@@ -112,5 +116,23 @@ describe("analysis presets", () => {
       topNgrams: 10,
       keywordExclusions: [],
     });
+  });
+
+  it("returns an empty list when stored JSON is malformed", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => "{not-json",
+    });
+
+    expect(loadAnalysisPresets()).toEqual([]);
+  });
+
+  it("reports local storage write failures", () => {
+    vi.stubGlobal("localStorage", {
+      setItem: () => {
+        throw new Error("quota exceeded");
+      },
+    });
+
+    expect(saveAnalysisPresets([preset("One")])).toBe(false);
   });
 });
