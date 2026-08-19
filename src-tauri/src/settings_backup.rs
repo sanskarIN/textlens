@@ -26,7 +26,7 @@ impl SettingsData {
             || !(1..=50).contains(&self.top_keywords)
             || !(1..=50).contains(&self.top_ngrams)
         {
-            return Err(invalid_settings_error());
+            return Err(AppError::InvalidSettingsData);
         }
         Ok(self)
     }
@@ -65,7 +65,7 @@ pub fn read(path: &Path) -> Result<SettingsData, AppError> {
     let backup: SettingsBackup =
         serde_json::from_slice(&bytes).map_err(AppError::InvalidSettings)?;
     if backup.version != SETTINGS_BACKUP_VERSION {
-        return Err(invalid_settings_error());
+        return Err(AppError::InvalidSettingsData);
     }
     backup.settings.validate()
 }
@@ -117,12 +117,6 @@ fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), AppError> {
     }
 }
 
-fn invalid_settings_error() -> AppError {
-    AppError::InvalidSettings(
-        serde_json::from_str::<SettingsBackup>("null").expect_err("null is not a settings backup"),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,7 +145,10 @@ mod tests {
     fn rejects_out_of_range_settings() {
         let mut settings = sample_settings();
         settings.reading_wpm = 0;
-        assert!(settings.validate().is_err());
+        assert!(matches!(
+            settings.validate(),
+            Err(AppError::InvalidSettingsData)
+        ));
     }
 
     #[test]
