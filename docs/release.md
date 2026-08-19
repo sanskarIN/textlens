@@ -18,12 +18,14 @@ npm run version:check
 
 The About dialog resolves the packaged application version at runtime through Tauri metadata instead of treating a copied UI literal as the release source of truth.
 
+Application version and report-schema version are independent. TextLens 2.0.12 continues to emit report schema v2. See `docs/report-schema.md` before changing report models or compatibility behavior.
+
 ## Tag integrity
 
 Stable/release tags must exactly match the npm application version with a leading `v`.
 
 ```bash
-npm run release:tag-check -- v0.1.0
+npm run release:tag-check -- v2.0.12
 ```
 
 On GitHub Actions the script reads `GITHUB_REF_NAME`, so `.github/workflows/release.yml` rejects a mismatched tag before dependencies are installed or platform packaging starts.
@@ -53,7 +55,7 @@ Do not move an existing release tag to a different commit.
 4. Run the release-mode synthetic benchmark and record the result in the release notes or performance evidence.
 5. Build from a clean checkout on Windows, macOS, and Linux.
 6. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
-7. Confirm report/settings schema compatibility notes match the implementation.
+7. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
 8. Complete the manual accessibility checklist in `docs/accessibility.md`.
 9. Replace repository mock screenshots with real captures from the verified release candidate where possible.
 10. Run the tag check against the intended tag.
@@ -63,9 +65,11 @@ Do not move an existing release tag to a different commit.
 
 Before tagging:
 
+- Confirm `CURRENT_REPORT_VERSION` remains `2` unless an explicit schema migration is intended.
 - Export a current schema-v2 analysis report and import it for comparison.
 - Import a synthetic schema-v1 report and verify unavailable vocabulary metrics are not shown as real deltas.
 - Verify future/invalid report versions are rejected.
+- Confirm canonical JSON still excludes raw source text and full source paths.
 - Export a current settings schema-v2 backup and restore it.
 - Restore a synthetic schema-v1 settings backup and verify newer preferences receive documented defaults.
 - Confirm malformed/oversized report and settings files are rejected.
@@ -123,6 +127,8 @@ For every supported platform artifact:
 ## Release notes
 
 Use `.github/RELEASE_TEMPLATE.md` as a checklist. Describe user-visible changes, privacy/security changes, schema compatibility, known limitations, verification commands, and platform-specific caveats. Do not claim a platform or quality gate was verified unless it was actually run.
+
+For the 2.0.12 source milestone, `docs/releases/v2.0.12.md` records what is source-complete and which release-candidate checks still require external environments.
 
 ## Rollback
 
