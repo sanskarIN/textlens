@@ -18,9 +18,14 @@ All notable TextLens changes are documented here.
 - Reusable local analysis presets for reading/speaking rates, result limits, and keyword exclusions, bounded to 12 device-local presets.
 - Privacy-safe Markdown export customization for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
 - Dependency-free release version consistency check covering npm, Cargo, and Tauri metadata, enforced in CI.
+- Release-tag guard that rejects `vX.Y.Z` tags that do not match the application version before packaging starts.
+- Deterministic SHA-256 release-artifact checksum generator and strict checksum-manifest verifier.
+- Failure-safe local-storage boundary plus a session-only memory fallback for blocked or unavailable WebView storage.
+- Guarded application startup that renders a local recovery view rather than leaving a blank window when initialization fails.
+- Manual Settings update section that opens the official GitHub Releases page only when requested and performs no background update check.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
 - Deterministic malformed UTF-8, UTF-16 boundary, and Windows-1252 byte fixtures wired into Rust decoding tests.
-- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, analysis preset validation/persistence behavior, and Markdown export-option parsing.
+- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, analysis preset validation/persistence behavior, Markdown export-option parsing, and failure-safe storage helpers.
 - Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, deterministic encoding-boundary fixtures, custom Markdown rendering, and private-path error redaction.
 
 ### Changed
@@ -33,6 +38,8 @@ All notable TextLens changes are documented here.
 - Analysis-option validation is shared by ordinary settings and local presets so both paths enforce the same bounds.
 - Existing Markdown export entry points now open the same section picker; JSON export remains a complete canonical report.
 - The About dialog resolves the packaged application version at runtime instead of relying on a copied release number as its source of truth.
+- Settings, recent-file metadata, and analysis presets now share exception-contained storage helpers instead of calling WebView persistence independently.
+- Frontend boot now flows through a single startup module so storage fallback and optional UI modules initialize in a deterministic order.
 
 ### Security
 
@@ -42,6 +49,8 @@ All notable TextLens changes are documented here.
 - Analysis presets never contain source text, file paths, reports, recent-file entries, or unrelated privacy/appearance settings; persisted preset values are bounded and validated before use.
 - Markdown customization can omit source metadata, and raw source document text is never offered as an export option.
 - Missing report/settings export destination errors no longer retain or echo the private directory path.
+- Persistent-storage failures no longer escape as uncaught application errors from settings/recent/preset persistence paths.
+- Release checksum verification rejects unsafe paths, duplicate entries, missing artifacts, extra artifacts, malformed manifests, and digest mismatches.
 
 ## [0.1.0] - 2026-08-19
 

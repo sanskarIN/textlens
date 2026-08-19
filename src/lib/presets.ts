@@ -1,5 +1,6 @@
 import { parseAnalysisOptions } from "../state";
 import type { AnalysisOptions, AnalysisPreset, AppSettings } from "../types";
+import { readStorageItem, writeStorageItem } from "./storage";
 
 const STORAGE_KEY = "textlens.analysis-presets.v1";
 const MAX_PRESET_NAME_CHARACTERS = 48;
@@ -23,21 +24,17 @@ export function parseAnalysisPresets(value: unknown): AnalysisPreset[] {
 }
 
 export function loadAnalysisPresets(): AnalysisPreset[] {
+  const raw = readStorageItem(STORAGE_KEY);
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? parseAnalysisPresets(JSON.parse(raw) as unknown) : [];
+    return parseAnalysisPresets(JSON.parse(raw) as unknown);
   } catch {
     return [];
   }
 }
 
 export function saveAnalysisPresets(presets: AnalysisPreset[]): boolean {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parseAnalysisPresets(presets)));
-    return true;
-  } catch {
-    return false;
-  }
+  return writeStorageItem(STORAGE_KEY, JSON.stringify(parseAnalysisPresets(presets)));
 }
 
 export function createAnalysisPreset(

@@ -1,3 +1,4 @@
+import { readStorageItem, writeStorageItem } from "./lib/storage";
 import type { AnalysisOptions, AppSettings, ThemePreference } from "./types";
 
 const STORAGE_KEY = "textlens.settings.v1";
@@ -41,18 +42,17 @@ export function parseSettings(value: unknown): AppSettings {
 }
 
 export function loadSettings(): AppSettings {
+  const raw = readStorageItem(STORAGE_KEY);
+  if (!raw) return { ...defaultSettings, keywordExclusions: [] };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw
-      ? parseSettings(JSON.parse(raw) as unknown)
-      : { ...defaultSettings, keywordExclusions: [] };
+    return parseSettings(JSON.parse(raw) as unknown);
   } catch {
     return { ...defaultSettings, keywordExclusions: [] };
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parseSettings(settings)));
+export function saveSettings(settings: AppSettings): boolean {
+  return writeStorageItem(STORAGE_KEY, JSON.stringify(parseSettings(settings)));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

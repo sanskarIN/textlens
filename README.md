@@ -43,6 +43,10 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Per-entry and clear-all recent-history controls; disabling the option deletes stored metadata.
 - Keyboard-first searchable Quick actions for common workflows plus direct desktop shortcuts.
 - Runtime About-version display backed by packaged Tauri metadata plus a dependency-free release-version consistency gate.
+- Failure-safe local preference storage with a session-only in-memory fallback when WebView persistence is blocked.
+- Guarded startup recovery instead of a blank window if application initialization fails.
+- Privacy-preserving manual update section that opens GitHub Releases only after explicit user action; no background update polling.
+- Release-tag validation plus deterministic SHA-256 artifact checksum generation and verification tools.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
 - No account, analytics SDK, cloud API, or donation gate.
@@ -61,6 +65,8 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 Recent-file history is an explicit opt-in. It is intentionally informational rather than a reopen list, because reopening would require retaining a filesystem path. TextLens stores at most 10 metadata entries, collapses duplicate display names to the newest entry, and clears the history when the preference is disabled or defaults are restored.
 
 Analysis presets are also local-only. A preset stores only its display name plus analysis configuration: reading/speaking rates, result limits, and keyword exclusions. It never stores document contents, source paths, recent-file entries, reports, theme, reduced-motion choice, or the recent-file-history opt-in. Up to 12 presets are retained and each name is bounded to 48 Unicode scalar values.
+
+Settings, recent metadata, and presets share a failure-safe storage boundary. If persistent WebView storage is unavailable, TextLens attempts to continue with session-only in-memory preferences and clearly reports that persistence is unavailable. This fallback never uploads preferences or document content.
 
 ## Privacy-safe report customization
 
@@ -83,7 +89,7 @@ The Markdown picker is used by the visible export button, Quick actions, and `Ct
 - **TypeScript** — strongly typed UI behavior, report comparison/customization, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
-- **GitHub Actions** — CI, security checks, release automation, and version-consistency enforcement.
+- **GitHub Actions** — CI, security checks, release automation, version/tag consistency enforcement.
 
 ## Quick start
 
@@ -129,10 +135,19 @@ Full guides:
 
 ## Build and release
 
-Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart.
+Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Before tagging, verify that the intended tag matches the package version.
 
 ```bash
+npm run version:check
+npm run release:tag-check -- v0.1.0
 npm run tauri:build
+```
+
+After collecting final platform artifacts into one directory, generate and verify a SHA-256 manifest:
+
+```bash
+npm run release:checksums -- artifacts release-metadata/SHA256SUMS.txt
+npm run release:checksums:verify -- artifacts release-metadata/SHA256SUMS.txt
 ```
 
 Tagged releases are automated by `.github/workflows/release.yml`. See [docs/release.md](docs/release.md) before publishing artifacts.
@@ -140,6 +155,9 @@ Tagged releases are automated by `.github/workflows/release.yml`. See [docs/rele
 ## Architecture overview
 
 ```text
+startup.ts
+      │ local storage probe / guarded boot
+      ▼
 TypeScript/Vite UI
       │ Tauri IPC
       ▼
@@ -151,7 +169,7 @@ commands.rs
       └── settings_backup.rs  ← validated local preference backup/restore
 ```
 
-The frontend keeps comparison, Markdown export-option handling, Quick actions, recent-metadata handling, local analysis presets, settings parsing, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+The frontend keeps comparison, Markdown export-option handling, Quick actions, recent-metadata handling, local analysis presets, settings parsing, storage reliability, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
 
 ## Report compatibility
 
@@ -161,7 +179,7 @@ Imported reports are size-limited and validated before they reach the UI. Compar
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, Markdown can additionally omit display-name/analysis/encoding metadata, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, Markdown can additionally omit display-name/analysis/encoding metadata, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. The update section performs no background check and opens the official Releases page only when requested. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 Do not report security vulnerabilities in a public issue.
 
