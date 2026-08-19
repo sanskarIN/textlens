@@ -30,6 +30,17 @@ export const en = {
   clear: "Clear",
   privacyNote: "Offline by design. Your text is processed locally and is never uploaded.",
   ready: "Ready",
+  recentFiles: "Recent files",
+  recentFilesEyebrow: "Local metadata",
+  recentFilesHint:
+    "Optional display-name, size, and opened-time history only. Full file paths and document contents are never stored here.",
+  rememberRecentFiles: "Remember recent file metadata",
+  rememberRecentFilesHint:
+    "Off by default. Disabling this option clears any metadata history previously saved by TextLens.",
+  clearRecentFiles: "Clear history",
+  removeRecentFile: "Remove",
+  noRecentFiles: "No recent file metadata saved.",
+  ready: "Ready",
   overview: "Overview",
   liveMetrics: "Live metrics",
   pastedText: "Pasted text",
