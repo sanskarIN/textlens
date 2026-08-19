@@ -20,7 +20,7 @@ All notable TextLens changes are documented here.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
 - Deterministic malformed UTF-8, UTF-16 boundary, and Windows-1252 byte fixtures wired into Rust decoding tests.
 - Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, analysis preset validation/persistence behavior, and Markdown export-option parsing.
-- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, deterministic encoding-boundary fixtures, and custom Markdown rendering.
+- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, deterministic encoding-boundary fixtures, custom Markdown rendering, and private-path error redaction.
 
 ### Changed
 
@@ -39,6 +39,7 @@ All notable TextLens changes are documented here.
 - Recent-file history is disabled by default, never stores full paths, rejects path-like display names, and is erased when the preference is disabled.
 - Analysis presets never contain source text, file paths, reports, recent-file entries, or unrelated privacy/appearance settings; persisted preset values are bounded and validated before use.
 - Markdown customization can omit source metadata, and raw source document text is never offered as an export option.
+- Missing report/settings export destination errors no longer retain or echo the private directory path.
 
 ## [0.1.0] - 2026-08-19
 
