@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { en } from "./i18n/en";
-import { formatInteger } from "./lib/format";
+import { comparisonMetrics, keywordDeltas, type ComparisonUnit } from "./lib/comparison";
+import { formatBytes, formatDuration, formatInteger } from "./lib/format";
 import { encodingSummary, escapeHtml, metricRows } from "./lib/presentation";
 import { defaultSettings, loadSettings, parseSettings, saveSettings } from "./state";
 import type {
@@ -92,6 +93,7 @@ app.innerHTML = `
         <p>${en.exportBody}</p>
       </div>
       <div class="actions">
+        <button id="compareReportButton" type="button" disabled>${en.compareReport}</button>
         <button id="exportJsonButton" type="button" disabled>${en.exportJson}</button>
         <button id="exportMarkdownButton" type="button" disabled>${en.exportMarkdown}</button>
       </div>
@@ -157,6 +159,25 @@ app.innerHTML = `
     </div>
     <p class="credit">${en.watermark}</p>
   </div>
+</dialog>
+
+<dialog id="compareDialog" class="wide-dialog">
+  <div>
+    <div class="heading">
+      <div><p class="eyebrow">${en.compareEyebrow}</p><h2>${en.compareHeading}</h2></div>
+      <button id="closeCompareButton" class="ghost" type="button">${en.close}</button>
+    </div>
+    <p class="dialog-copy">${en.compareBody}</p>
+    <div id="comparisonMeta" class="compare-meta"></div>
+    <div class="compare-scroll">
+      <table class="compare-table">
+        <thead><tr><th>Metric</th><th>${en.compareCurrent}</th><th>${en.compareBaseline}</th><th>${en.compareDifference}</th></tr></thead>
+        <tbody id="comparisonMetricsBody"></tbody>
+      </table>
+    </div>
+    <h3>${en.compareKeywords}</h3>
+    <div id="comparisonKeywords" class="compare-keywords"></div>
+  </div>
 </dialog>`;
 
 function get<T extends HTMLElement>(id: string): T {
@@ -174,8 +195,13 @@ const diagnostics = get<HTMLElement>("diagnosticsGrid");
 const badge = get<HTMLElement>("sourceBadge");
 const exportJson = get<HTMLButtonElement>("exportJsonButton");
 const exportMd = get<HTMLButtonElement>("exportMarkdownButton");
+const compareButton = get<HTMLButtonElement>("compareReportButton");
 const settingsDialog = get<HTMLDialogElement>("settingsDialog");
 const aboutDialog = get<HTMLDialogElement>("aboutDialog");
+const compareDialog = get<HTMLDialogElement>("compareDialog");
+const comparisonMeta = get<HTMLElement>("comparisonMeta");
+const comparisonMetricsBody = get<HTMLTableSectionElement>("comparisonMetricsBody");
+const comparisonKeywords = get<HTMLElement>("comparisonKeywords");
 
 let settings = loadSettings();
 let report: AnalysisReport | null = null;
@@ -196,8 +222,10 @@ function setStatus(message: string, error = false): void {
 }
 
 function setExport(): void {
-  exportJson.disabled = !report;
-  exportMd.disabled = !report;
+  const disabled = !report;
+  exportJson.disabled = disabled;
+  exportMd.disabled = disabled;
+  compareButton.disabled = disabled;
 }
 
 function renderMetrics(current: AnalysisReport | null): void {
@@ -329,6 +357,74 @@ async function exportReport(format: "json" | "markdown"): Promise<void> {
   }
 }
 
+async function compareReport(): Promise<void> {
+  if (!report) return;
+  const current = report;
+  try {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      title: en.compareHeading,
+      filters: [{ name: "TextLens JSON report", extensions: ["json"] }],
+    });
+    if (typeof path !== "string") return;
+    const baseline = await invoke<AnalysisReport>("import_report", { path });
+    renderComparison(current, baseline);
+    compareDialog.showModal();
+    setStatus(en.compareLoaded);
+  } catch (error) {
+    setStatus(`Error: ${String(error)}`, true);
+  }
+}
+
+function renderComparison(current: AnalysisReport, baseline: AnalysisReport): void {
+  const currentLabel = current.source.displayName ?? en.pastedText;
+  const baselineLabel = baseline.source.displayName ?? en.pastedText;
+  comparisonMeta.innerHTML = `<span><strong>${en.compareCurrent}:</strong> ${escapeHtml(currentLabel)}</span><span><strong>${en.compareBaseline}:</strong> ${escapeHtml(baselineLabel)}</span>`;
+
+  comparisonMetricsBody.innerHTML = comparisonMetrics(current, baseline)
+    .map(
+      (item) =>
+        `<tr><th scope="row">${escapeHtml(item.label)}</th><td>${escapeHtml(formatComparisonValue(item.current, item.unit))}</td><td>${escapeHtml(formatComparisonValue(item.baseline, item.unit))}</td><td class="delta ${item.delta > 0 ? "positive" : item.delta < 0 ? "negative" : "neutral"}">${escapeHtml(formatComparisonDelta(item.delta, item.unit))}</td></tr>`,
+    )
+    .join("");
+
+  const changes = keywordDeltas(current, baseline);
+  if (!changes.length) {
+    comparisonKeywords.className = "compare-keywords empty";
+    comparisonKeywords.textContent = en.compareNoKeywordChanges;
+    return;
+  }
+
+  comparisonKeywords.className = "compare-keywords";
+  comparisonKeywords.innerHTML = changes
+    .map(
+      (item) =>
+        `<div><strong>${escapeHtml(item.text)}</strong><span>${formatInteger(item.current)} vs ${formatInteger(item.baseline)}</span><b class="delta ${item.delta > 0 ? "positive" : "negative"}">${escapeHtml(formatSignedInteger(item.delta))}</b></div>`,
+    )
+    .join("");
+}
+
+function formatComparisonValue(value: number, unit: ComparisonUnit): string {
+  if (unit === "bytes") return formatBytes(value);
+  if (unit === "seconds") return formatDuration(value);
+  return formatInteger(value);
+}
+
+function formatComparisonDelta(value: number, unit: ComparisonUnit): string {
+  if (value === 0) return "0";
+  const sign = value > 0 ? "+" : "−";
+  const absolute = Math.abs(value);
+  if (unit === "bytes") return `${sign}${formatBytes(absolute)}`;
+  if (unit === "seconds") return `${sign}${formatInteger(absolute)} s`;
+  return `${sign}${formatInteger(absolute)}`;
+}
+
+function formatSignedInteger(value: number): string {
+  if (value === 0) return "0";
+  return `${value > 0 ? "+" : "−"}${formatInteger(Math.abs(value))}`;
+}
+
 async function backupSettings(): Promise<void> {
   try {
     const path = await save({
@@ -406,12 +502,14 @@ get<HTMLButtonElement>("clearButton").onclick = clear;
 input.addEventListener("input", schedule);
 exportJson.onclick = () => void exportReport("json");
 exportMd.onclick = () => void exportReport("markdown");
+compareButton.onclick = () => void compareReport();
 get<HTMLButtonElement>("settingsButton").onclick = () => {
   syncSettings();
   settingsDialog.showModal();
 };
 get<HTMLButtonElement>("aboutButton").onclick = () => aboutDialog.showModal();
 get<HTMLButtonElement>("closeAboutButton").onclick = () => aboutDialog.close();
+get<HTMLButtonElement>("closeCompareButton").onclick = () => compareDialog.close();
 get<HTMLButtonElement>("dismissOnboarding").onclick = () => {
   localStorage.setItem("textlens.onboarding.dismissed", "1");
   get("onboarding").hidden = true;
