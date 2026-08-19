@@ -6,7 +6,7 @@ TextLens analyzes text locally on your computer. Core functionality requires no 
 
 ## Data handled
 
-TextLens may process typed/pasted text, local files you explicitly select, local analysis settings, saved aggregate reports you explicitly select for comparison, and reports or settings backups you explicitly export.
+TextLens may process typed/pasted text, local files you explicitly select, local analysis settings, optional recent-file metadata you explicitly enable, saved aggregate reports you explicitly select for comparison, and reports or settings backups you explicitly export.
 
 ## Pasted text
 
@@ -18,11 +18,23 @@ The Rust backend reads the file you choose. Compatible large files are processed
 
 ## Settings
 
-Theme, reading/speaking rates, result limits, keyword exclusions, and reduced-motion preferences are stored locally in WebView application storage.
+Theme, reading/speaking rates, result limits, keyword exclusions, the recent-file-metadata opt-in, and reduced-motion preferences are stored locally in WebView application storage.
 
 Keyword exclusions are preferences only. They filter the displayed/exported keyword summary while core counts and n-grams continue to use the complete analyzed token stream.
 
-TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain keyword exclusions restore with an empty exclusion list.
+TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain newer preferences restore them to privacy-preserving defaults.
+
+## Optional recent-file metadata
+
+Recent-file metadata is **off by default**. If you enable it, TextLens stores at most 10 local entries containing only:
+
+- display filename;
+- analyzed file size;
+- opened timestamp.
+
+Full file paths, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Display names containing path separators are rejected before storage. Two files that share the same display filename intentionally collapse to the newest entry because directory identity is not retained.
+
+The Recent files panel provides per-entry removal and a clear-all control. Turning the setting off or restoring default settings deletes the stored recent-file metadata. The history is informational and cannot reopen a file because TextLens does not retain the path required to do so.
 
 ## Analysis exports
 
@@ -40,7 +52,7 @@ Quick action search terms are UI state inside the local WebView. They are used o
 
 ## Network behavior
 
-Core analysis, settings backup/restore, report comparison, keyword exclusions, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
+Core analysis, settings backup/restore, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
 
 ## Logging
 
@@ -48,7 +60,7 @@ Production code must never log raw analyzed text, full private document paths, i
 
 ## Retention
 
-There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
+There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
 
 ## Contact
 
