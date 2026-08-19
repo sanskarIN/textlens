@@ -23,15 +23,8 @@ export function comparisonMetrics(
   current: AnalysisReport,
   baseline: AnalysisReport,
 ): ComparisonMetric[] {
-  return [
+  const metrics = [
     metric("words", en.words, current.stats.words, baseline.stats.words, "count"),
-    metric(
-      "uniqueWords",
-      en.uniqueWords,
-      current.stats.uniqueWords,
-      baseline.stats.uniqueWords,
-      "count",
-    ),
     metric(
       "characters",
       en.characters,
@@ -64,6 +57,22 @@ export function comparisonMetrics(
       "seconds",
     ),
   ];
+
+  if (current.version >= 2 && baseline.version >= 2) {
+    metrics.splice(
+      1,
+      0,
+      metric(
+        "uniqueWords",
+        en.uniqueWords,
+        current.stats.uniqueWords,
+        baseline.stats.uniqueWords,
+        "count",
+      ),
+    );
+  }
+
+  return metrics;
 }
 
 export function keywordDeltas(
