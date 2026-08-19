@@ -10,6 +10,7 @@ describe("settings parsing", () => {
         speakingWpm: 120,
         topKeywords: 20,
         topNgrams: 15,
+        keywordExclusions: ["the", "and"],
         reducedMotion: true,
       }),
     ).toEqual({
@@ -18,6 +19,7 @@ describe("settings parsing", () => {
       speakingWpm: 120,
       topKeywords: 20,
       topNgrams: 15,
+      keywordExclusions: ["the", "and"],
       reducedMotion: true,
     });
   });
@@ -30,6 +32,7 @@ describe("settings parsing", () => {
         speakingWpm: Number.NaN,
         topKeywords: 0,
         topNgrams: 999,
+        keywordExclusions: "the,and",
         reducedMotion: "yes",
       }),
     ).toEqual(defaultSettings);
@@ -39,5 +42,23 @@ describe("settings parsing", () => {
     expect(parseSettings(null)).toEqual(defaultSettings);
     expect(parseSettings(["dark"])).toEqual(defaultSettings);
     expect(parseSettings("dark")).toEqual(defaultSettings);
+  });
+
+  it("trims deduplicates and bounds keyword exclusions", () => {
+    const long = "x".repeat(100);
+    const parsed = parseSettings({
+      ...defaultSettings,
+      keywordExclusions: ["  The  ", "the", "AND", "", 42, long],
+    });
+
+    expect(parsed.keywordExclusions).toEqual(["The", "AND", "x".repeat(64)]);
+  });
+
+  it("limits keyword exclusions to one hundred entries", () => {
+    const parsed = parseSettings({
+      ...defaultSettings,
+      keywordExclusions: Array.from({ length: 150 }, (_, index) => `word-${index}`),
+    });
+    expect(parsed.keywordExclusions).toHaveLength(100);
   });
 });
