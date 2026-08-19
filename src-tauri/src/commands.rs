@@ -37,12 +37,12 @@ pub async fn analyze_file(
 #[tauri::command]
 pub async fn export_report(
     path: String,
-    report_data: AnalysisReport,
+    report: AnalysisReport,
     format: String,
 ) -> Result<(), String> {
     tracing::debug!(operation = "export_report", "report export requested");
     tauri::async_runtime::spawn_blocking(move || {
-        report::write_report(PathBuf::from(path).as_path(), &report_data, &format)
+        crate::report::write_report(PathBuf::from(path).as_path(), &report, &format)
     })
     .await
     .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
