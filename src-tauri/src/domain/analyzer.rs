@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -30,6 +30,7 @@ pub(crate) struct AnalysisAccumulator {
     word_counts: HashMap<String, usize>,
     bigram_counts: HashMap<String, usize>,
     trigram_counts: HashMap<String, usize>,
+    keyword_exclusions: HashSet<String>,
     previous_word: Option<String>,
     previous_two: Option<(String, String)>,
     sentence_open: bool,
@@ -39,13 +40,22 @@ pub(crate) struct AnalysisAccumulator {
 
 impl AnalysisAccumulator {
     pub(crate) fn new(options: AnalysisOptions) -> Self {
+        let options = options.sanitized();
+        let keyword_exclusions = options
+            .keyword_exclusions
+            .iter()
+            .map(|value| normalize(value))
+            .filter(|value| !value.is_empty())
+            .collect();
+
         Self {
-            options: options.sanitized(),
+            options,
             stats: TextStats::default(),
             whitespace: WhitespaceDiagnostics::default(),
             word_counts: HashMap::new(),
             bigram_counts: HashMap::new(),
             trigram_counts: HashMap::new(),
+            keyword_exclusions,
             previous_word: None,
             previous_two: None,
             sentence_open: false,
@@ -104,8 +114,10 @@ impl AnalysisAccumulator {
         self.stats.reading_seconds = estimate_seconds(self.stats.words, self.options.reading_wpm);
         self.stats.speaking_seconds = estimate_seconds(self.stats.words, self.options.speaking_wpm);
 
+        let mut keyword_counts = self.word_counts;
+        keyword_counts.retain(|word, _| !self.keyword_exclusions.contains(word));
         let keywords = rank(
-            self.word_counts,
+            keyword_counts,
             self.stats.words.max(1),
             self.options.top_keywords,
         );
@@ -330,6 +342,21 @@ mod tests {
         assert_eq!(r.stats.words, 4);
         assert_eq!(r.stats.unique_words, 3);
         assert_eq!(r.stats.max_word_characters, 8);
+    }
+
+    #[test]
+    fn keyword_exclusions_do_not_change_core_counts_or_ngrams() {
+        let options = AnalysisOptions {
+            keyword_exclusions: vec!["THE".into(), "rust".into()],
+            ..AnalysisOptions::default()
+        };
+        let r = analyze_text("the rust rust book", options);
+
+        assert_eq!(r.stats.words, 4);
+        assert_eq!(r.stats.unique_words, 3);
+        assert!(r.keywords.iter().all(|item| item.text != "the" && item.text != "rust"));
+        assert!(r.keywords.iter().any(|item| item.text == "book"));
+        assert!(r.bigrams.iter().any(|item| item.text == "the rust"));
     }
 
     #[test]
