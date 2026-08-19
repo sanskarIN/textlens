@@ -26,7 +26,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Add a checked-in synthetic fixture corpus for multilingual text and difficult punctuation.
 - [x] Add deterministic byte fixtures for malformed UTF-8, UTF-16 boundaries, and Windows-1252 edge bytes.
 - [ ] Improve encoding heuristics only if deterministic, offline, and clearly labelled.
-- [ ] Add richer report customization without including raw source text by default.
+- [x] Add richer report customization without including raw source text by default.
 
 ## 0.3 — Power-user workflows
 
