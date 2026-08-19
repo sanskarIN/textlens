@@ -8,6 +8,7 @@ Thank you for improving TextLens. The project values focused changes, reproducib
 2. For a large behavior or architecture change, open an issue first.
 3. Do not include private documents, credentials, real API keys, or personal user data in fixtures.
 4. Keep TextLens usable without an account or network connection.
+5. Read the relevant ADR before changing report schemas, settings backups, encoding behavior, or local persistence.
 
 ## Development workflow
 
@@ -48,7 +49,10 @@ A pull request should explain the user-visible effect, privacy/security impact, 
 
 - Keep domain logic independent of UI/platform concerns.
 - Prefer explicit error handling over panics.
-- Never log analyzed document contents.
+- Never log analyzed document contents or full selected paths.
+- Treat report/settings imports as untrusted input and preserve size/range/schema validation.
+- Keep report schema compatibility explicit. New fields with changed required semantics should trigger a version decision and compatibility tests.
+- Keep settings backup migrations explicit; old supported backups should have deterministic defaults or an intentional rejection path.
 - Run `cargo fmt` and `cargo clippy`.
 
 ### TypeScript/UI
@@ -57,6 +61,25 @@ A pull request should explain the user-visible effect, privacy/security impact, 
 - Escape user-derived strings before injecting HTML.
 - Preserve keyboard navigation and visible focus states.
 - Avoid third-party network scripts.
+- Reuse existing action functions from Quick actions instead of creating duplicate implementations.
+- Validate values read from WebView storage rather than trusting stored JSON.
+
+## Local persistence rules
+
+TextLens intentionally keeps persistence small. Before adding a new local store:
+
+1. Explain why persistence is required rather than keeping the value in memory.
+2. Store the minimum fields needed for the feature.
+3. Set collection/string/size bounds.
+4. Provide deletion controls where retained user activity is involved.
+5. Prefer opt-in for activity metadata.
+6. Never persist analyzed source text or full source paths as incidental convenience data.
+7. Add parsing/validation tests for malformed local-storage values.
+8. Document whether a settings backup contains the preference, the data, both, or neither.
+
+## Fixtures
+
+Synthetic fixtures belong under `src-tauri/tests/fixtures/` when they improve regression readability. Keep them deterministic, fictional, small, and free of real personal or proprietary content.
 
 ## Accessibility
 
