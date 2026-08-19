@@ -24,13 +24,21 @@ Keyword exclusions are preferences only. They filter the displayed/exported keyw
 
 TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain newer preferences restore them to privacy-preserving defaults.
 
+### Storage availability
+
+WebView storage is an optional local persistence mechanism, not a prerequisite for analysis. TextLens contains storage exceptions rather than allowing a blocked, unavailable, corrupted, or quota-limited local storage implementation to crash the application.
+
+At startup TextLens probes local preference storage. When persistent storage is unusable and the WebView permits a safe replacement, the app uses a process-local in-memory fallback for the current session and reports that preferences are session-only. The fallback contains only the same local preference/metadata categories described in this policy, is not transmitted anywhere, and disappears when the process ends.
+
+If neither persistent storage nor the local fallback can be established, the guarded startup path renders a local recovery message rather than silently switching to a network service.
+
 ## Local analysis presets
 
 Analysis presets are optional reusable configurations stored only in local WebView application storage. A preset can contain only a display name, reading and speaking rates, top-keyword and top-n-gram limits, and keyword exclusions.
 
 Presets never contain analyzed text, source file paths, recent-file entries, report contents, encoding samples, theme choice, reduced-motion preference, or the recent-file-history opt-in. Preset names and collections are bounded, and persisted values are validated before use.
 
-Presets are device-local and are not included in the current settings backup schema. They remain stored until you delete them individually or clear the application WebView storage.
+Presets are device-local and are not included in the current settings backup schema. They remain stored until you delete them individually or clear the application WebView storage. If TextLens is running on the session-only storage fallback, preset changes for that session are not durable after exit.
 
 ## Optional recent-file metadata
 
@@ -42,7 +50,7 @@ Recent-file metadata is **off by default**. If you enable it, TextLens stores at
 
 Full file paths, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Display names containing path separators are rejected before storage. Two files that share the same display filename intentionally collapse to the newest entry because directory identity is not retained.
 
-The Recent files panel provides per-entry removal and a clear-all control. Turning the setting off or restoring default settings deletes the stored recent-file metadata. The history is informational and cannot reopen a file because TextLens does not retain the path required to do so.
+The Recent files panel provides per-entry removal and a clear-all control. Turning the setting off or restoring default settings deletes the stored recent-file metadata when local persistence is available. The history is informational and cannot reopen a file because TextLens does not retain the path required to do so.
 
 ## Analysis exports
 
@@ -62,9 +70,15 @@ The imported baseline report exists in application memory only for the compariso
 
 Quick action search terms are UI state inside the local WebView. They are used only to filter the built-in list of actions and are not stored or transmitted.
 
+## Updates and external links
+
+TextLens does not poll an update server in the background. The Settings update section opens the official GitHub Releases page only after you explicitly press its button. GitHub, source, and Buy Me a Coffee links likewise open only after explicit user interaction.
+
+Opening an external page transfers control to your system browser, where that site's own privacy practices apply. Document text is not attached to these URLs by TextLens.
+
 ## Network behavior
 
-Core analysis, local analysis presets, settings backup/restore, report export customization, report comparison, keyword exclusions, recent-file metadata, and Quick actions need no network. GitHub and Buy Me a Coffee links open only after explicit user interaction.
+Core analysis, local analysis presets, settings backup/restore, report export customization, report comparison, keyword exclusions, recent-file metadata, Quick actions, and startup recovery need no network.
 
 ## Logging
 
@@ -72,7 +86,7 @@ Production code must never log raw analyzed text, full private document paths, i
 
 ## Retention
 
-There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata. Analysis presets remain until individually deleted or application WebView storage is cleared. Markdown export section choices are session-only UI state. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
+There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata when local persistence is available. Analysis presets remain until individually deleted or application WebView storage is cleared. Markdown export section choices are session-only UI state. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
 
 ## Contact
 
