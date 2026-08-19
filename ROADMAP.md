@@ -17,8 +17,11 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 ## 0.2 — Reliability and polish
 
 - [ ] Validate packaged builds on each supported OS and attach real screenshots.
-- [ ] Expand the fixture corpus for scripts and difficult punctuation.
-- [ ] Add a dedicated benchmark harness for large-file throughput.
+- [x] Expand analysis regression/property coverage for Unicode vocabulary invariants.
+- [x] Add a dedicated repeatable benchmark harness for analyzer throughput.
+- [x] Add versioned, validated settings backup/restore.
+- [x] Surface undefined Windows-1252 byte replacements in encoding diagnostics.
+- [ ] Expand the checked-in synthetic fixture corpus for difficult punctuation and encoding boundaries.
 - [ ] Improve encoding heuristics only if deterministic, offline, and clearly labelled.
 - [ ] Add richer report customization without including raw source text by default.
 
