@@ -15,9 +15,10 @@ All notable TextLens changes are documented here.
 - Searchable keyboard-first Quick actions palette for common workspace operations.
 - Opt-in recent-file metadata history storing only display filename, size, and opened timestamp, capped at 10 entries.
 - Per-entry removal and clear-all controls for recent-file metadata; disabling the setting clears the history.
+- Privacy-safe Markdown export customization for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
 - Checked-in multilingual and difficult-punctuation fixtures for repeatable regression coverage.
-- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, and keyword-exclusion settings parsing.
-- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, and punctuation handling.
+- Frontend unit coverage for report comparison, Quick actions filtering, recent-file metadata validation, keyword-exclusion settings parsing, and Markdown export-option parsing.
+- Rust regression coverage for report import validation, legacy schema compatibility, settings exclusions, keyword filtering, multilingual text, punctuation handling, and custom Markdown rendering.
 
 ### Changed
 
@@ -26,12 +27,14 @@ All notable TextLens changes are documented here.
 - Encoding diagnostics now flag undefined Windows-1252 bytes and replace them safely.
 - The desktop workspace now surfaces vocabulary metrics alongside the existing live counts.
 - Settings backups remain schema-v1 compatible while defaulting newer preferences for older backups.
+- Existing Markdown export entry points now open the same section picker; JSON export remains a complete canonical report.
 
 ### Security
 
 - Imported report metadata, frequencies, sizes, schema versions, and numeric relationships are validated before presentation.
 - Report comparison operates on aggregate exported report data and never attempts to reconstruct source document text.
 - Recent-file history is disabled by default, never stores full paths, rejects path-like display names, and is erased when the preference is disabled.
+- Markdown customization can omit source metadata, and raw source document text is never offered as an export option.
 
 ## [0.1.0] - 2026-08-19
 
