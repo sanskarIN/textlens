@@ -1,4 +1,5 @@
 import { installStorageFallback } from "./lib/storage";
+import "./startup.css";
 
 async function start(): Promise<void> {
   const storageMode = installStorageFallback();
