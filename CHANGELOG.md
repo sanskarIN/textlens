@@ -21,7 +21,7 @@ No user-visible changes have been added after the 2.0.12 source milestone yet.
 - Per-entry removal and clear-all controls for recent-file metadata; disabling the setting clears the history.
 - Reusable local analysis presets for reading/speaking rates, result limits, and keyword exclusions, bounded to 12 device-local presets.
 - Privacy-safe Markdown export customization for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
-- Dependency-free release version consistency check covering npm, Cargo, and Tauri metadata, enforced in CI.
+- Dependency-free release version consistency check covering npm, Cargo, Tauri, README release identity, changelog release identity, and version-specific source milestone notes.
 - Release-tag guard that rejects `vX.Y.Z` tags that do not match the application version before packaging starts.
 - Deterministic SHA-256 release-artifact checksum generator and strict checksum-manifest verifier.
 - Failure-safe local-storage boundary plus a session-only memory fallback for blocked or unavailable WebView storage.
@@ -40,6 +40,7 @@ No user-visible changes have been added after the 2.0.12 source milestone yet.
 - New analyses continue to emit report schema v2; application version 2.0.12 does not change report-schema semantics.
 - Legacy schema-v1 report JSON remains importable; vocabulary deltas unavailable in v1 are omitted from comparisons instead of being fabricated.
 - Encoding diagnostics flag undefined Windows-1252 bytes and replace them safely.
+- Encoding heuristics were re-audited for 2.0.12 and the deterministic UTF BOM/valid UTF-8/labelled Windows-1252 fallback policy was intentionally retained instead of adding unproven statistical guessing.
 - The desktop workspace surfaces vocabulary metrics alongside the existing live counts.
 - Settings backups remain schema-v1 compatible while defaulting newer preferences for older backups.
 - Analysis-option validation is shared by ordinary settings and local presets so both paths enforce the same bounds.
@@ -47,6 +48,7 @@ No user-visible changes have been added after the 2.0.12 source milestone yet.
 - The About dialog resolves the packaged application version at runtime instead of relying on a copied release number as its source of truth.
 - Settings, recent-file metadata, and analysis presets share exception-contained storage helpers instead of calling WebView persistence independently.
 - Frontend boot flows through a single startup module so storage fallback and optional UI modules initialize in a deterministic order.
+- CI and release workflows run dependency-free release identity checks before dependency/toolchain setup so metadata/document drift fails fast.
 
 ### Security
 
