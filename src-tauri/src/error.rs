@@ -10,6 +10,16 @@ pub enum AppError {
     ReadFile(#[source] std::io::Error),
     #[error("The report could not be written.")]
     WriteReport(#[source] std::io::Error),
+    #[error("The report could not be read.")]
+    ReadReport(#[source] std::io::Error),
+    #[error("The report file is larger than the supported limit.")]
+    ReportTooLarge,
+    #[error("The report is not valid TextLens report JSON.")]
+    InvalidReport(#[source] serde_json::Error),
+    #[error("The report uses unsupported schema version {0}.")]
+    UnsupportedReportVersion(u8),
+    #[error("The report contains unsupported or inconsistent values.")]
+    InvalidReportData,
     #[error("The settings backup could not be written.")]
     WriteSettings(#[source] std::io::Error),
     #[error("The settings backup could not be read.")]
