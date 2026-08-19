@@ -6,6 +6,8 @@ use crate::error::AppError;
 
 const SETTINGS_BACKUP_VERSION: u8 = 1;
 const MAX_SETTINGS_BACKUP_BYTES: u64 = 64 * 1024;
+const MAX_KEYWORD_EXCLUSIONS: usize = 100;
+const MAX_KEYWORD_EXCLUSION_CHARACTERS: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -15,6 +17,8 @@ pub struct SettingsData {
     pub speaking_wpm: u32,
     pub top_keywords: usize,
     pub top_ngrams: usize,
+    #[serde(default)]
+    pub keyword_exclusions: Vec<String>,
     pub reduced_motion: bool,
 }
 
@@ -25,6 +29,12 @@ impl SettingsData {
             || !(30..=1000).contains(&self.speaking_wpm)
             || !(1..=50).contains(&self.top_keywords)
             || !(1..=50).contains(&self.top_ngrams)
+            || self.keyword_exclusions.len() > MAX_KEYWORD_EXCLUSIONS
+            || self.keyword_exclusions.iter().any(|value| {
+                value.trim().is_empty()
+                    || value.chars().count() > MAX_KEYWORD_EXCLUSION_CHARACTERS
+                    || value.contains('\0')
+            })
         {
             return Err(AppError::InvalidSettingsData);
         }
@@ -128,6 +138,7 @@ mod tests {
             speaking_wpm: 150,
             top_keywords: 12,
             top_ngrams: 10,
+            keyword_exclusions: vec!["the".into(), "and".into()],
             reduced_motion: true,
         }
     }
@@ -142,9 +153,32 @@ mod tests {
     }
 
     #[test]
+    fn reads_legacy_version_one_backup_without_exclusions() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(
+            &path,
+            r#"{"version":1,"settings":{"theme":"system","readingWpm":238,"speakingWpm":150,"topKeywords":12,"topNgrams":10,"reducedMotion":false}}"#,
+        )
+        .unwrap();
+        let restored = read(&path).unwrap();
+        assert!(restored.keyword_exclusions.is_empty());
+    }
+
+    #[test]
     fn rejects_out_of_range_settings() {
         let mut settings = sample_settings();
         settings.reading_wpm = 0;
+        assert!(matches!(
+            settings.validate(),
+            Err(AppError::InvalidSettingsData)
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_keyword_exclusions() {
+        let mut settings = sample_settings();
+        settings.keyword_exclusions = vec!["x".repeat(65)];
         assert!(matches!(
             settings.validate(),
             Err(AppError::InvalidSettingsData)
