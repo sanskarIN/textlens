@@ -17,6 +17,7 @@ pub fn run() {
             commands::analyze_text,
             commands::analyze_file,
             commands::export_report,
+            commands::import_report,
             commands::export_settings,
             commands::import_settings
         ])
