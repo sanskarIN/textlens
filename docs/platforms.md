@@ -66,7 +66,9 @@ Desktop builds use the Rust backend for local file analysis. Large UTF-8/Windows
 
 The web build replaces the Tauri-facing modules at bundle time with browser-safe implementations in `src/platform/`. Browser file analysis enforces a **64 MiB** source-file limit because the selected file is analyzed in memory. Report imports remain bounded to **512 KiB** and settings backups to **64 KiB**.
 
-The PWA service worker caches the application shell and same-origin build assets. It does not cache analyzed document contents or exported reports. Raster 192×192 and 512×512 PWA icons plus a 180×180 Apple touch icon are included alongside the SVG application mark.
+Portable file decoding intentionally follows the native Rust file layer's detection/error contract: encoding detection examines the first 32 KiB, UTF-8 decode errors after that sample are reported without changing the selected encoding, UTF-16 odd/malformed sequences are surfaced through replacement characters plus the report error flag, and Windows-1252 undefined bytes use the same native mapping. Imported portable reports also pass an additional native-parity guard for schema-v2 vocabulary metrics, grapheme/character consistency, frequency-item limits, and possible n-gram positions.
+
+The PWA service worker caches the application shell and same-origin static build assets only. It does not cache analyzed document contents or exported reports. Raster 192×192 and 512×512 PWA icons plus a 180×180 Apple touch icon are included alongside the SVG application mark. Web build URLs, manifest identity/scope, icon references, and service-worker registration are application-base-relative so the generated `dist/` can be hosted either at a domain root or under a subdirectory.
 
 ### Android and iOS/iPadOS
 
@@ -100,7 +102,7 @@ npm run build:web
 npm run preview:web
 ```
 
-`build:web` uses the browser adapters and emits a static `dist/` bundle suitable for HTTPS static hosting.
+`build:web` uses the browser adapters and emits a static `dist/` bundle suitable for HTTPS static hosting. Production asset URLs are relative to the application base rather than hard-coded to `/`, so static hosts may publish TextLens below a path such as `/textlens/` without breaking its manifest, icons, generated chunks, or service-worker scope.
 
 ### Mobile frontend
 
@@ -161,13 +163,14 @@ App Store signing, provisioning, privacy declarations, screenshots, and review s
 
 ## Web/PWA deployment requirements
 
-Serve the contents of `dist/` from HTTPS in production. The host should:
+Serve the contents of `dist/` from HTTPS in production. TextLens may be hosted at the origin root or at a subdirectory/application base. The host should:
 
-- serve `index.html` for the application root;
+- serve the generated `index.html` for the selected application base;
 - serve JavaScript/CSS with correct MIME types;
-- allow `manifest.webmanifest` and `sw.js` at the application root;
+- serve `manifest.webmanifest` and `sw.js` from that same application base;
 - serve the raster and SVG app icons without rewriting them to HTML;
 - avoid rewriting `sw.js` to HTML;
+- keep all files from one `dist/` build together beneath the same base path;
 - use a cache policy that permits the service worker to discover updated application assets.
 
 Text analysis remains in the browser after the static assets have loaded.
@@ -196,7 +199,7 @@ npm run build:web
 npm run build:mobile
 ```
 
-The Rust job continues to run formatting, clippy, and tests separately.
+Portable regression tests cover analyzer behavior, native-compatible file decoding, and report-import parity. The Rust job continues to run formatting, clippy, and tests separately.
 
 Before publishing a platform artifact, also perform platform-native acceptance testing for:
 
@@ -211,6 +214,7 @@ Before publishing a platform artifact, also perform platform-native acceptance t
 - keyboard navigation on desktop/web;
 - touch target behavior on mobile;
 - offline relaunch for installed PWA;
+- root-hosted and subdirectory-hosted PWA install/offline behavior when those deployment layouts are used;
 - no unexpected network transfer of analyzed text.
 
 ## Release evidence versus source support
