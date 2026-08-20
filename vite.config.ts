@@ -12,6 +12,7 @@ const portableAliases = {
 
 export default defineConfig(({ mode }) => ({
   clearScreen: false,
+  base: mode === "web" ? "./" : undefined,
   resolve: {
     alias: mode === "web" || mode === "mobile" ? portableAliases : {},
   },
