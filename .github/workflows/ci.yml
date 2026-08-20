@@ -58,10 +58,15 @@ jobs:
         run: cargo test --all-targets
 
   lockfiles:
-    name: Generate reproducibility lockfiles
+    name: Commit reproducibility lockfiles
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -72,12 +77,17 @@ jobs:
       - name: Generate Cargo lockfile
         working-directory: src-tauri
         run: cargo generate-lockfile
-      - name: Upload generated lockfiles
-        uses: actions/upload-artifact@v4
-        with:
-          name: textlens-reproducibility-lockfiles
-          path: |
-            package-lock.json
-            src-tauri/Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit generated lockfiles when changed
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet -- package-lock.json src-tauri/Cargo.lock && \
+             git ls-files --error-unmatch package-lock.json src-tauri/Cargo.lock >/dev/null 2>&1; then
+            echo "Reproducibility lockfiles are already committed and current."
+            exit 0
+          fi
+          git config user.name "Sanskar"
+          git config user.email "sanskarin@outlook.in"
+          git add package-lock.json src-tauri/Cargo.lock
+          git commit -m "build: add reproducibility lockfiles"
+          git push origin "HEAD:${HEAD_REF}"
