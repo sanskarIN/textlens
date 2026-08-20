@@ -2,6 +2,7 @@
   "name": "textlens",
   "private": true,
   "version": "2.0.12",
+  "type": "module",
   "description": "Privacy-first cross-platform text analysis with Rust, Tauri, and the Web Platform.",
   "author": {
     "name": "Sanskar",
