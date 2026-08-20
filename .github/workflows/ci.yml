@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -13,24 +17,36 @@ jobs:
     name: Frontend quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
       - run: npm run version:check
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm run lint
       - run: npm run format:check
       - run: npm run docs:check
       - run: npm run test
       - run: npm run build
+      - run: npm run build:web
+      - run: npm run build:mobile
 
   rust:
     name: Rust quality
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out same-repository PR head
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Check out normal event ref
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+        uses: actions/checkout@v6
       - name: Install Tauri Linux prerequisites
         run: |
           sudo apt-get update
@@ -46,7 +62,27 @@ jobs:
         run: cargo fmt --check
       - name: Clippy
         working-directory: src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Test
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Test with bounded failure capture
+        id: rust-tests
         working-directory: src-tauri
-        run: cargo test --all-targets
+        shell: bash
+        run: |
+          set +e
+          cargo test --locked --all-targets 2>&1 | tee cargo-test-full.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            tail -n 240 cargo-test-full.log > ../cargo-test-failure.log
+          fi
+          rm -f cargo-test-full.log
+          exit "$status"
+      - name: Commit temporary Rust test diagnostic
+        if: failure() && steps.rust-tests.outcome == 'failure' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "Sanskar"
+          git config user.email "sanskarin@outlook.in"
+          git add cargo-test-failure.log
+          git commit -m "ci: capture Rust test failure diagnostic"
+          git push origin "HEAD:${HEAD_REF}"

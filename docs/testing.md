@@ -1,132 +1,238 @@
 # Testing Strategy
 
-## TypeScript
+TextLens testing separates **source-level portability** from **platform release evidence**. CI can prove that the native, Web/PWA, and mobile frontend modes compile and that shared logic passes automated tests; it cannot prove App Store provisioning, Android signing, device-specific WebView behavior, or a hosted PWA deployment from a Linux runner alone.
+
+See [platforms.md](platforms.md) for the platform support model.
+
+## Deterministic dependency baseline
+
+Clean test environments should install the exact committed npm dependency graph before running frontend checks:
+
+```bash
+npm ci
+```
+
+Rust validation uses the committed `src-tauri/Cargo.lock` through Cargo's `--locked` flag. If either manifest and its lockfile disagree, deterministic validation must fail rather than silently resolving a different dependency graph.
+
+## TypeScript and portable-runtime tests
 
 ```bash
 npm run test
 ```
 
-Pure frontend helpers have unit tests. The UI delegates text analysis and validated filesystem I/O to Rust.
-
-Current frontend helper coverage includes:
+Frontend coverage includes:
 
 - settings parsing and bounds, including keyword exclusions and privacy-sensitive opt-ins;
 - shared analysis-option parsing used by settings and reusable presets;
-- analysis-preset name/collection bounds, case-insensitive deduplication, replacement ordering, application semantics, malformed storage, and write-failure handling;
-- failure-safe storage helpers for available, unavailable, and exception-throwing storage implementations;
+- analysis-preset name/collection bounds, deduplication, replacement ordering, and malformed storage;
+- failure-safe storage helpers;
 - numeric/byte/duration formatting;
 - HTML-safe presentation helpers;
-- report metric and top-keyword comparison deltas;
-- legacy-report comparison behavior for vocabulary metrics unavailable in schema v1;
-- Markdown export-option defaults, explicit section choices, and malformed-field fallback behavior;
-- Quick actions query filtering and multi-term matching;
-- recent-file metadata parsing, path rejection, numeric/timestamp validation, deduplication, and ten-entry bounds.
+- report comparison and legacy-schema behavior;
+- Markdown export-option parsing;
+- Quick actions filtering;
+- recent-file metadata validation and bounds;
+- portable Web/mobile analysis for core counts, vocabulary metrics, keyword exclusions, n-grams, Unicode graphemes, mixed line endings, encoding-error behavior, and native-report import invariants.
+
+`src/platform/web-analyzer.test.ts` guards the observable counting contract for the second local analysis implementation. `src/platform/web-tauri-core-guard.test.ts` covers native/import parity and portable file-decoding behavior. New portable analyzer behavior should be tested against the same observable report contract used by the Rust analyzer.
+
+## Frontend build matrix
+
+Every cross-platform change must compile all frontend modes:
+
+```bash
+npm run check
+npm run build
+npm run build:web
+npm run build:mobile
+```
+
+The modes mean:
+
+- `build` — native Tauri frontend using real Tauri JavaScript modules;
+- `build:web` — browser/PWA bundle using portable aliases;
+- `build:mobile` — Android/iOS Tauri frontend using portable aliases without PWA service-worker registration.
+
+A change that passes the desktop build but breaks either portable build is not cross-platform complete.
 
 ## Rust unit tests
 
 ```bash
 cd src-tauri
-cargo test --lib
+cargo test --locked --lib
 ```
 
-Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, configurable Markdown section rendering, canonical JSON export behavior, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
-
-Report-export tests verify that Markdown customization can omit source metadata/sections without exposing source text, while JSON remains a complete round-trippable report even when Markdown options are supplied.
+Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 handling, privacy-safe report rendering, configurable Markdown rendering, canonical JSON behavior, report import validation, atomic replacement, and settings backup validation/round trips.
 
 Report-import tests cover current-schema round trips, schema-v1 compatibility, unsupported future versions, inconsistent metrics, and oversized inputs.
 
-Settings tests cover current backups, legacy backups without newer preferences, invalid exclusions, unknown fields, out-of-range values, and atomic replacement behavior.
-
-Deterministic decoding fixtures cover malformed UTF-8, undefined Windows-1252 bytes, and an odd UTF-16LE boundary so replacement/error behavior does not depend on platform text files.
+Deterministic decoding fixtures cover malformed UTF-8, undefined Windows-1252 bytes, and UTF-16 boundaries.
 
 ## Integration/property tests
 
 ```bash
-cargo test --all-targets
+cd src-tauri
+cargo test --locked --all-targets
 ```
 
-Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
+Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the native analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
 
-`src-tauri/tests/report_schema_contract.rs` is a deliberate compatibility guard asserting that the stable report schema remains v2. If that assertion is intentionally changed, the same change must update migration/compatibility tests, `docs/report-schema.md`, `CHANGELOG.md`, and release notes.
+`src-tauri/tests/report_schema_contract.rs` guards the stable report schema at v2. An intentional change must update migration/compatibility tests, `docs/report-schema.md`, `CHANGELOG.md`, and release notes.
 
-Checked-in synthetic fixtures under `src-tauri/tests/fixtures/` provide stable multilingual, difficult-punctuation, and byte-boundary inputs. Fixtures must remain fictional and must never contain private documents.
+Fixtures under `src-tauri/tests/fixtures/` must remain synthetic and must never contain private documents.
 
 ## Static checks
 
 ```bash
+npm ci
 npm run version:check
 npm run check
 npm run lint
 npm run format:check
 npm run docs:check
+npm run test
 npm run build
+npm run build:web
+npm run build:mobile
+
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
-`npm run version:check` is dependency-free. It verifies that `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` declare the same application version and that README release identity, the matching changelog section, and `docs/releases/v<version>.md` are present for that version. For the current source milestone that version is 2.0.12.
+`npm run version:check` verifies npm, Cargo, Tauri, README, changelog, and version-specific release-note identity for application version 2.0.12.
 
-Application version and report-schema version are independent. A passing 2.0.12 version check does not authorize a report schema change; the report compatibility contract is in `docs/report-schema.md`.
+Application version and report-schema version are independent. Cross-platform work must continue to emit report schema v2 unless an explicit compatibility migration is made.
 
-CI runs the version gate before `npm install`, and tagged release automation runs tag/version/document identity checks before Rust toolchain and platform dependency setup, so release identity drift fails as early as possible.
+CI performs identity checks, installs the exact npm graph with `npm ci`, exercises all three frontend bundles, and validates Rust against the committed Cargo lockfile. Security auditing also validates the committed Cargo lockfile rather than generating a fresh dependency resolution.
 
-All checks above are release gates. Do not mark them passing merely because the source was inspected; record the actual command result in `what_changed.md`.
+Do not mark a command passing merely because source was inspected. Record actual CI/local evidence separately from source changes.
+
+## Portable runtime limits to test
+
+Web/mobile acceptance must include boundary behavior:
+
+- selected source file at/under the 64 MiB portable limit;
+- selected source file above 64 MiB rejected with a readable error;
+- report import at/under 512 KiB;
+- oversized report rejected;
+- settings backup at/under 64 KiB;
+- oversized settings backup rejected;
+- UTF-8 BOM;
+- UTF-16 LE BOM;
+- UTF-16 BE BOM;
+- valid UTF-8 without BOM;
+- non-UTF-8 fallback labelled Windows-1252;
+- malformed bytes recorded consistently with the native decoding contract;
+- no source path embedded in a generated report.
+
+## PWA acceptance
+
+After `npm run build:web`, deploy or serve the output in a service-worker-capable environment and verify:
+
+1. the manifest loads without errors;
+2. the service worker installs with the intended application-relative scope;
+3. the application loads normally online;
+4. after the application shell has been cached, a relaunch can load without network access;
+5. analyzed source text does not appear in Cache Storage entries;
+6. imported documents and generated reports are not intentionally added to the service-worker cache;
+7. an updated application build can replace the old TextLens PWA cache;
+8. file selection and export still work after installation as a standalone PWA;
+9. root-hosted and configured subdirectory-hosted deployments resolve manifest/icons/chunks/service-worker paths correctly.
+
+ChromeOS acceptance uses this same PWA path.
+
+## Android acceptance
+
+On an emulator and at least one representative physical device when preparing a release:
+
+1. initialize/build with the documented Tauri Android toolchain;
+2. launch without a startup crash;
+3. verify safe-area/touch layout and portrait/landscape behavior;
+4. paste multilingual text and compare counts with a desktop reference fixture;
+5. select text files through the Android document picker;
+6. verify selected provider content is analyzed without exposing a full desktop-style source path;
+7. export JSON and Markdown through the available local mobile workflow;
+8. restore a settings backup;
+9. compare an exported report;
+10. verify local settings persistence and fallback behavior;
+11. verify external Releases navigation requires explicit interaction;
+12. inspect network behavior and confirm analyzed text is not sent to a TextLens backend.
+
+A source build is not evidence of Play Store signing or policy compliance. Verify AAB/APK signing and store requirements separately.
+
+## iPhone/iPad acceptance
+
+On Simulator and a representative physical device when preparing a release:
+
+1. initialize/build on macOS with Xcode;
+2. launch without a startup crash;
+3. verify iPhone and iPad safe areas, orientation, and dynamic viewport behavior;
+4. test paste analysis with multilingual fixtures;
+5. select files from the iOS document workflow;
+6. verify local report/settings import/export behavior;
+7. test report comparison;
+8. verify theme and reduced-motion behavior;
+9. verify no background update polling;
+10. inspect network behavior and confirm analyzed text is not sent to a TextLens backend.
+
+Provisioning, signing, App Store privacy declarations, screenshots, and submission are separate release gates.
+
+## Desktop acceptance
+
+Desktop release candidates should verify:
+
+- pasted analysis;
+- native file open/save dialogs;
+- UTF-8/UTF-16/Windows-1252 behavior;
+- large-file streaming;
+- JSON and Markdown export;
+- report comparison;
+- settings backup/restore;
+- presets and recent-file metadata;
+- keyboard-only navigation;
+- theme/reduced motion;
+- release link behavior;
+- platform package install/uninstall behavior.
+
+## Shared manual feature acceptance
+
+Across each applicable runtime:
+
+1. Paste ordinary English and confirm live updates.
+2. Paste Hindi, Arabic, CJK, accents, emoji, and combining marks.
+3. Confirm unique-word and longest-word metrics.
+4. Add keyword exclusions and verify only keyword summaries change.
+5. Save/apply/delete analysis presets and verify no source text/path enters preset storage.
+6. Back up and restore settings.
+7. Open LF, CRLF, CR, and mixed-ending inputs where the platform file workflow permits fixture selection.
+8. Export complete canonical JSON and verify source text/full source path are absent.
+9. Export Markdown with all sections, then with selected sections disabled.
+10. Compare against schema-v2 and compatible schema-v1 reports.
+11. Reject malformed/future/oversized reports and malformed/oversized settings backups.
+12. Exercise Quick actions and visible controls.
+13. Verify recent-file metadata remains opt-in, path-free, bounded, removable, and clearable.
+14. Simulate blocked local persistence and confirm memory fallback or guarded startup recovery.
+15. Confirm the Updates section performs no background check.
+16. Test light/dark/system and reduced motion.
+17. Test narrow/mobile layouts and comparison-table scrolling.
 
 ## Performance smoke test
 
-Run the release-mode benchmark with an input size in MiB and optional iteration count:
+Native desktop benchmark:
 
 ```bash
 cd src-tauri
-cargo run --release --example benchmark -- 16 5
+cargo run --locked --release --example benchmark -- 16 5
 ```
 
-Record machine/OS/toolchain details when comparing results between revisions.
+Record machine, OS, and toolchain information when comparing results.
 
-## Manual acceptance
+For Web/mobile, separately profile the portable analyzer with representative 1 MiB, 8 MiB, and larger synthetic files below the 64 MiB limit. Browser/mobile measurements are not directly comparable with Rust streaming measurements because the execution models differ.
 
-Before a release candidate:
+## Release artifact integrity
 
-1. Run `npm run version:check` and confirm the packaged About dialog displays the same release version.
-2. For 2.0.12, run `npm run release:tag-check -- v2.0.12` before creating the tag.
-3. Paste ordinary English and confirm live updates.
-4. Paste Hindi, Arabic, CJK, accents, emoji, and combining marks.
-5. Confirm unique-word and longest-word metrics with repeated and multilingual terms.
-6. Add keyword exclusions with mixed case, commas, blank entries, duplicates, and line breaks; confirm only the keyword summary changes while word counts and n-grams remain stable.
-7. Save an analysis preset containing non-default reading/speaking rates, result limits, and keyword exclusions; close/reopen Settings and confirm it remains available locally.
-8. Save another preset with the same name using different capitalization and confirm it replaces the existing preset rather than creating a duplicate.
-9. Apply a preset and confirm the existing Settings save path updates the active pasted text or file analysis while theme, reduced-motion choice, and recent-file-history opt-in remain unchanged.
-10. Delete a preset and confirm it disappears after reopening Settings. Verify preset storage contains no source text, file path, report, recent-file entry, or unrelated privacy/appearance setting.
-11. Back up settings containing keyword exclusions, clear/change them, restore the backup, and confirm all backed-up values return. Confirm device-local analysis presets are not included in the current settings backup schema.
-12. Open LF, CRLF, CR, and mixed-ending files.
-13. Open UTF-8/BOM and UTF-16LE/BE BOM fixtures.
-14. Test malformed UTF-8 and undefined Windows-1252 bytes and confirm the encoding warning appears.
-15. Force streaming with `TEXTLENS_LARGE_FILE_THRESHOLD_MIB=1` and a synthetic >1 MiB file.
-16. Export JSON and verify it remains a complete schema-v2 report with source document content and full source path absent.
-17. Open Markdown export from the visible button, Quick actions, and `Ctrl/Cmd + E`; verify all three open the same section picker.
-18. Export Markdown with every section selected and verify the previous full aggregate report content is present while source text is absent.
-19. Disable source metadata and selected aggregate sections, export Markdown, and verify those sections/filename metadata are absent while the schema marker and TextLens attribution remain.
-20. Disable every optional Markdown section and verify export still succeeds without including source text.
-21. Confirm a newly exported JSON report uses schema v2 even though the application version is 2.0.12.
-22. Compare the current analysis with a valid exported schema-v2 JSON report and verify metric/keyword deltas.
-23. Compare against a compatible schema-v1 report and confirm unavailable vocabulary deltas are omitted.
-24. Attempt report comparison with malformed JSON, version 0, a future version, inconsistent metrics, invalid frequency data, and a file larger than 512 KiB; each must be rejected.
-25. Attempt to restore malformed, unknown-field, unsupported-version, out-of-range, invalid-exclusion, and oversized settings files; each must be rejected.
-26. Open Quick actions with both the navigation button and `Ctrl/Cmd + Shift + P`; verify search is case-insensitive and multi-term filtering works.
-27. Verify report-dependent Quick actions remain visible but disabled before any analysis and become enabled after analysis.
-28. Execute focus, open, clear, export, compare, Settings, and About through Quick actions and verify they reuse the same behavior as visible controls.
-29. Confirm Recent files is hidden with default settings and no metadata storage key is retained.
-30. Enable recent-file metadata, open more than 10 fictional files, and confirm only the newest 10 display-name/size/time entries remain.
-31. Confirm recent metadata never includes a directory or full path; remove one entry and then clear all history.
-32. Disable recent-file metadata and confirm stored history is deleted immediately. Restore defaults and verify the same deletion behavior.
-33. Back up settings with recent metadata enabled and verify the backup stores only the boolean preference, not recent-file entries.
-34. Simulate blocked/unavailable persistent WebView storage and confirm TextLens either uses the clearly labelled session-only memory fallback or renders the guarded local startup recovery view instead of a blank window/network fallback.
-35. Confirm the Settings Updates section performs no background update request and opens the official GitHub Releases page only after explicit interaction.
-36. Test light/dark/system themes.
-37. Navigate all controls keyboard-only, including dialogs, the Markdown section picker, Quick actions, analysis preset controls, recent-history controls, and Updates section.
-38. Enable reduced motion.
-39. Test narrow window widths and horizontal comparison-table scrolling.
-40. After collecting final platform artifacts, generate and verify the SHA-256 manifest with the documented release scripts.
+After final platform artifacts have actually been produced, generate and verify their SHA-256 manifest with the documented release scripts. Do not fabricate artifact or signing evidence.
 
 Never commit real private documents as fixtures.

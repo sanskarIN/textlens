@@ -4,7 +4,38 @@ All notable TextLens changes are documented here.
 
 ## [Unreleased]
 
-No user-visible changes have been added after the 2.0.12 source milestone yet.
+### Added
+
+- Portable local analysis runtime for Web/PWA and Tauri Android/iOS frontend builds.
+- Browser-safe Web/PWA adapters for text/file analysis, report import/export, settings backup/restore, version display, local file selection/download, and explicit external navigation.
+- Native Android/iOS document-provider open/save workflow using Tauri dialog + filesystem access around the shared portable analyzer.
+- Android `content://` and iOS/iPadOS `file://` URI handling without routing provider handles into desktop `std::fs` commands.
+- Web/PWA build and development modes plus an installable manifest, 192×192/512×512 raster icons, Apple touch icon, and offline application-shell service worker.
+- Web/PWA release artifact generation on tagged release workflows.
+- Android and iOS Tauri build commands with platform-specific configuration selecting the portable mobile frontend mode.
+- Platform-scoped Tauri mobile capability configuration separate from desktop capabilities.
+- Cross-platform safe-area, touch-target, dynamic-viewport, and narrow-screen layout hardening.
+- Portable analyzer regression coverage for core counts, vocabulary metrics, keyword exclusions, Unicode graphemes, n-grams, and mixed line endings.
+- Dedicated cross-platform documentation in `docs/platforms.md` and ADR-0012.
+
+### Changed
+
+- TextLens is now structured for Windows, macOS, Linux, Android, iOS/iPadOS, Web/PWA, and ChromeOS through the PWA instead of being desktop-only.
+- Frontend CI now builds native desktop, Web/PWA, and mobile frontend modes.
+- Desktop builds retain the Rust streaming/file-decoding path; Web uses browser sandbox file semantics; Android/iOS use native Tauri document-provider URIs with an explicit 64 MiB portable in-memory analysis bound.
+- Mobile exports/settings backups write only to an explicit native save destination selected by the user.
+- Mobile packaged-version and external-link behavior uses the native Tauri app/opener bridge while Web/PWA keeps browser-safe fallbacks.
+- README, setup, architecture, testing, privacy, and platform documentation distinguish source support from signed/store release evidence.
+- `@types/node` is aligned with Vite 7's supported peer range, and existing Rust sources are normalized to current stable `rustfmt` output so repository CI can proceed past pre-existing dependency/format gates.
+
+### Security
+
+- Desktop and mobile Tauri capabilities are explicitly scoped to their platform families instead of sharing an unqualified desktop capability.
+- Mobile filesystem access is limited to stat/read/write commands needed by explicit user-selected document workflows rather than broad shell/process/filesystem permissions.
+- Mobile provider URIs are not included in reports, recent-file metadata, presets, or settings backups.
+- Portable external navigation permits only HTTP, HTTPS, and mailto protocols.
+- The PWA service worker caches application-shell/static assets rather than analyzed source documents or generated reports.
+- Cross-platform support does not add a cloud text-analysis service or broad shell/process/filesystem permission grant.
 
 ## [2.0.12] - 2026-08-19
 

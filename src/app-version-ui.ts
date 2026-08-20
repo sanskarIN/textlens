@@ -1,4 +1,4 @@
-import { getVersion } from "@tauri-apps/api/app";
+import { getVersion } from "./platform/app";
 
 function initializeAppVersion(): void {
   const label = document.querySelector<HTMLElement>("#aboutDialog .eyebrow");

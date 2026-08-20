@@ -16,101 +16,224 @@
 
 </div>
 
-TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. It combines a Rust analysis engine with a lightweight Tauri + TypeScript interface and keeps document contents local by default.
+TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Linux, Android, iPhone/iPad, Web/PWA, and ChromeOS through the PWA**. Windows/macOS/Linux use the native Rust + Tauri backend, Web/PWA uses browser-local adapters, and Android/iOS combine the portable local analyzer with Tauri's native document-provider dialog/filesystem bridge. Document contents stay on the device instead of being sent to a TextLens server.
 
 ## Preview
 
 ![TextLens interface concept](docs/screenshots/app-preview.svg)
 
-> The preview is a repository-owned UI mock that tracks the implemented layout. Release documentation will use real platform captures when packaged binaries are produced.
+> The preview is a repository-owned UI mock that tracks the implemented layout. Platform release documentation should use real captures only after the corresponding build has been produced and tested.
 
 ## Features
 
 - Word, unique-word, longest-word, character, grapheme, sentence, paragraph, line, and byte counts.
 - Configurable reading-time and speaking-time estimates.
 - Ranked keyword frequency, bigrams, and trigrams.
-- Local keyword-exclusion lists for hiding unhelpful words from keyword summaries without changing core counts or n-grams.
+- Local keyword-exclusion lists that do not alter core counts or n-grams.
 - Reusable device-local analysis presets for reading/speaking rates, result limits, and keyword exclusions.
 - Whitespace diagnostics, blank-line counts, trailing-whitespace counts, and LF/CRLF/CR detection.
 - Live analysis for pasted text.
-- Local file analysis with UTF-8, UTF-16 BOM handling, and a clearly labelled Windows-1252 safe fallback.
-- Invalid UTF-8 and undefined Windows-1252 bytes are surfaced through an encoding warning rather than silently hidden.
-- Streaming analysis for large UTF-8/Windows-1252 files to avoid loading the entire document at once.
-- Canonical JSON report export plus customizable Markdown export; source document text is deliberately excluded from every report.
+- Local file analysis with UTF-8, UTF-16 BOM handling, and a labelled Windows-1252 fallback.
+- Desktop streaming analysis for large UTF-8/Windows-1252 files.
+- Web/mobile portable in-memory analysis with an explicit 64 MiB selected-source bound.
+- Native Android/iOS document-provider open/save workflows through scoped Tauri dialog/filesystem permissions.
+- Canonical JSON report export plus customizable Markdown export.
+- Source document text is deliberately excluded from every TextLens report.
 - Markdown section picker for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
-- Versioned JSON report schema with bounded, validated local report import and compatibility for legacy schema-v1 exports.
-- Frozen schema-v2 compatibility contract for the 2.x application line, documented separately from the app version.
-- Compare the current analysis with a previously exported TextLens JSON report without loading source document content.
-- Versioned settings backup/restore with strict validation and a size limit.
-- Optional recent-file metadata history, disabled by default, storing only display filename, size, and opened time—never full paths or source text.
-- Per-entry and clear-all recent-history controls; disabling the option deletes stored metadata.
-- Keyboard-first searchable Quick actions for common workflows plus direct desktop shortcuts.
-- Runtime About-version display backed by packaged Tauri metadata plus a dependency-free release-version consistency gate.
-- Failure-safe local preference storage with a session-only in-memory fallback when WebView persistence is blocked.
-- Guarded startup recovery instead of a blank window if application initialization fails.
-- Privacy-preserving manual update section that opens GitHub Releases only after explicit user action; no background update polling.
-- Release-tag validation plus deterministic SHA-256 artifact checksum generation and verification tools.
-- Light, dark, and system themes plus reduced-motion support.
-- Keyboard shortcuts and accessible focus/semantic states.
-- No account, analytics SDK, cloud API, or donation gate.
+- Versioned JSON report schema with bounded import and legacy schema-v1 compatibility.
+- Frozen report schema-v2 compatibility target for the TextLens 2.x application line.
+- Local comparison with previously exported TextLens JSON reports.
+- Versioned settings backup/restore with bounded validation.
+- Optional path-free recent-file metadata history, disabled by default.
+- Per-entry and clear-all recent-history controls.
+- Device-local analysis presets with bounded names and values.
+- Searchable Quick actions and keyboard shortcuts.
+- Light, dark, and system themes.
+- Reduced-motion support and accessible focus/semantic states.
+- Touch-safe mobile layout, safe-area handling, dynamic viewport sizing, and 16 px mobile form controls.
+- Installable PWA manifest, 192/512 px raster install icons, Apple touch icon, and offline application-shell service worker.
+- Failure-safe local preference storage with a session-only in-memory fallback.
+- Guarded startup recovery instead of a blank application window.
+- Manual-only update/release link with no background update polling.
+- Committed npm/Cargo lockfiles, deterministic CI/release dependency resolution, release-tag validation, and SHA-256 artifact checksum tools.
+- No account, analytics SDK, cloud analysis API, or donation gate.
+
+## Supported platforms
+
+| Platform | Runtime | Support | Primary command |
+| --- | --- | --- | --- |
+| Windows 10/11 | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
+| macOS | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
+| Linux desktop | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
+| Android | Tauri mobile + portable analyzer + native document URI bridge | ✅ Source supported | `npm run tauri:android:dev` / `npm run tauri:android:build` |
+| iPhone / iPad | Tauri mobile + portable analyzer + native document URI bridge | ✅ Source supported | `npm run tauri:ios:dev` / `npm run tauri:ios:build` |
+| Modern Web | Browser-local runtime | ✅ Supported | `npm run dev:web` / `npm run build:web` |
+| PWA | Browser-local runtime + service worker | ✅ Supported | `npm run build:web` |
+| ChromeOS | Web/PWA | ✅ Supported through PWA | `npm run build:web` |
+
+See [docs/platforms.md](docs/platforms.md) for prerequisites, architecture, capability boundaries, platform limitations, packaging expectations, and the complete acceptance matrix.
+
+### Source support is not the same as a published binary
+
+Android/iOS source configuration and build commands are included, but this repository does not claim a signed APK/AAB/IPA or store release unless one has actually been built and verified in the required platform environment. The same evidence rule applies to signed/notarized desktop packages and hosted PWA deployments.
+
+## One UI, platform-correct local runtimes
+
+TextLens deliberately does not force desktop filesystem assumptions onto browsers or mobile document providers.
+
+```text
+                         Shared TypeScript / Vite UI
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+       Windows/macOS/Linux       Web/PWA          Android / iOS
+              │                    │                    │
+       real Tauri APIs       browser adapters      Tauri mobile shell
+              │                    │                    │
+          Tauri IPC         browser File/Blob     native dialog + fs URI
+              │                    │                    │
+        Rust analyzer        portable analyzer     portable analyzer
+       + file streaming      + local downloads     + native open/save
+```
+
+Desktop builds retain the Rust streaming/file-decoding path. Web/PWA and mobile builds use the TypeScript portable analyzer and emit the same TextLens report schema v2. Web uses browser file/download APIs, while Android/iOS use the native Tauri dialog/filesystem plugins for user-selected document-provider URIs.
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
-|---|---|
+| --- | --- |
 | `Ctrl/Cmd + Shift + P` | Open Quick actions |
 | `Ctrl/Cmd + O` | Open a local text file |
 | `Ctrl/Cmd + E` | Open Markdown report section picker |
 | `Ctrl/Cmd + K` | Focus the text editor |
 
-## Privacy-first local preferences
-
-Recent-file history is an explicit opt-in. It is intentionally informational rather than a reopen list, because reopening would require retaining a filesystem path. TextLens stores at most 10 metadata entries, collapses duplicate display names to the newest entry, and clears the history when the preference is disabled or defaults are restored.
-
-Analysis presets are also local-only. A preset stores only its display name plus analysis configuration: reading/speaking rates, result limits, and keyword exclusions. It never stores document contents, source paths, recent-file entries, reports, theme, reduced-motion choice, or the recent-file-history opt-in. Up to 12 presets are retained and each name is bounded to 48 Unicode scalar values.
-
-Settings, recent metadata, and presets share a failure-safe storage boundary. If persistent WebView storage is unavailable, TextLens attempts to continue with session-only in-memory preferences and clearly reports that persistence is unavailable. This fallback never uploads preferences or document content.
-
-## Privacy-safe report customization
-
-JSON exports stay complete and canonical because they are the validated import/comparison format. Markdown exports can omit any optional aggregate section. Disabling **Source metadata** removes the display filename, analysis mode, and encoding from the Markdown report. The original document text is never an available export section.
-
-The Markdown picker is used by the visible export button, Quick actions, and `Ctrl/Cmd + E`, so all Markdown entry points share the same behavior.
-
-## Supported platforms
-
-| Platform | Target | Notes |
-|---|---|---|
-| Windows | Windows 10/11 | MSI/NSIS bundle through Tauri release builds |
-| macOS | Current supported macOS | App/DMG bundle through Tauri release builds |
-| Linux | Modern desktop distributions | AppImage/deb/rpm availability depends on Tauri host tooling |
-
-## Tech stack
-
-- **Rust** — analysis engine, file decoding/streaming, report validation/import/export, settings backup validation.
-- **Tauri 2** — native desktop shell and secure IPC.
-- **TypeScript** — strongly typed UI behavior, report comparison/customization, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
-- **Vite** — frontend development/build.
-- **Vitest + Rust tests + proptest** — automated verification.
-- **GitHub Actions** — CI, security checks, release automation, version/tag consistency enforcement.
+Touch devices expose the same actions through visible controls and dialogs instead of requiring keyboard shortcuts.
 
 ## Quick start
 
-### Prerequisites
+### Desktop
 
-Install Node.js 20.19+ (or 22.12+), Rust stable via `rustup`, and Tauri's OS-native prerequisites. See [docs/setup.md](docs/setup.md).
+Install Node.js 20.19+ (or 22.12+), Rust stable via `rustup`, and Tauri's OS-native prerequisites. Then:
 
 ```bash
 git clone https://github.com/sanskarIN/textlens.git
 cd textlens
-npm install
+npm ci
 npm run tauri:dev
 ```
 
-## Development setup
+### Web/PWA
 
 ```bash
-npm install
+npm ci
+npm run dev:web
+```
+
+Production bundle:
+
+```bash
+npm run build:web
+npm run preview:web
+```
+
+Deploy `dist/` from HTTPS for production PWA/service-worker behavior. Application assets, manifest entries, and service-worker scope are base-path-aware for root or configured subdirectory hosting.
+
+### Android
+
+After installing the Android/Tauri prerequisites described in [docs/platforms.md](docs/platforms.md):
+
+```bash
+npm ci
+npm run tauri:android:init
+npm run tauri:android:dev
+```
+
+Build command:
+
+```bash
+npm run tauri:android:build
+```
+
+### iPhone/iPad
+
+iOS development requires macOS/Xcode plus the Tauri iOS prerequisites. Then:
+
+```bash
+npm ci
+npm run tauri:ios:init
+npm run tauri:ios:dev
+```
+
+Build command:
+
+```bash
+npm run tauri:ios:build
+```
+
+Use `npm install` instead of `npm ci` only when intentionally changing npm dependencies and refreshing `package-lock.json`.
+
+## Privacy-first local preferences
+
+Recent-file history is an explicit opt-in. It stores at most 10 metadata entries and records display filename, size, and opened time only. It does not persist full source paths or source text.
+
+Analysis presets are also local-only. A preset stores only its display name plus analysis configuration: reading/speaking rates, result limits, and keyword exclusions. It never stores document contents, source paths, recent-file entries, reports, credentials, or external account data.
+
+Settings, recent metadata, and presets share a failure-safe storage boundary. If persistent WebView/browser storage is unavailable, TextLens attempts to continue with session-only in-memory preferences and clearly reports that persistence is unavailable. This fallback never uploads preferences or document content.
+
+## Privacy-safe reports
+
+JSON exports stay complete and canonical because they are the validated import/comparison format. Markdown exports can omit optional aggregate sections. Disabling **Source metadata** removes display filename, analysis mode, and encoding information from the Markdown report.
+
+The original document text is never an export section. Report comparison operates on exported aggregate values rather than reconstructing the source document.
+
+## Platform-specific file behavior
+
+### Desktop
+
+The Rust backend owns local file decoding and can stream large UTF-8/Windows-1252 inputs. UTF-16 BOM inputs use full-file decoding where byte-oriented streaming could split code units.
+
+### Web/PWA
+
+The web runtime uses sandboxed browser `File`, `TextDecoder`, `Blob`, and local download APIs. It uses the same 32 KiB encoding-detection sample contract as the native path, handles UTF-8 BOM and UTF-16 LE/BE BOM, records malformed decode behavior, and otherwise uses the same labelled Windows-1252 mapping semantics as the Rust implementation. Selected source files are bounded to 64 MiB because the portable analyzer processes them in memory.
+
+### Android and iOS/iPadOS
+
+The mobile shell uses Tauri's native document picker and scoped filesystem plugin. Android-selected documents are represented by `content://` URIs and iOS-selected documents by `file://` URIs. TextLens validates size, reads only the user-selected resource into the portable analyzer, and writes exports/settings backups only to an explicit native save destination. It does not route those provider URIs through the desktop `std::fs` analysis path.
+
+Portable report imports remain bounded to 512 KiB and settings-backup imports to 64 KiB. Portable report import additionally applies native-compatible report invariants before comparison/use.
+
+## PWA behavior
+
+`public/manifest.webmanifest` makes the web build installable on compatible browsers. `public/sw.js` caches only the application shell and static same-origin application assets needed for offline relaunch; it does **not** intentionally cache analyzed source documents or generated reports. Asset URLs and service-worker registration are application-base-relative instead of assuming deployment at `/`.
+
+The PWA includes raster 192×192 and 512×512 install icons plus a 180×180 Apple touch icon. The PWA path is also the supported ChromeOS route.
+
+## Tauri platform capabilities
+
+Permissions are intentionally split instead of granting one broad capability everywhere:
+
+- `src-tauri/capabilities/default.json` → Linux, macOS, Windows only.
+- `src-tauri/capabilities/mobile.json` → Android and iOS only.
+
+Mobile permissions are limited to core defaults, native dialog/opener access, and the filesystem commands needed to stat/read/write a user-selected document. The application does not request broad shell, process, unrestricted filesystem, or network capabilities merely to achieve cross-platform packaging.
+
+## Tech stack
+
+- **Rust** — native desktop analysis, file decoding/streaming, report validation/import/export, settings backup validation.
+- **Tauri 2** — Windows/macOS/Linux native shell plus Android/iOS mobile shell.
+- **Tauri dialog/filesystem/opener plugins** — native Android/iOS document-provider open/save and explicit external navigation.
+- **TypeScript** — shared UI and portable Web/mobile analysis implementation.
+- **Web Platform APIs** — browser file selection, local downloads, decoding, and PWA support.
+- **Vite** — mode-specific native/Web/mobile builds and portable adapter aliases.
+- **Vitest + Rust tests + proptest** — automated verification.
+- **GitHub Actions** — deterministic CI, security checks, dependency review, release automation, and version/tag consistency enforcement.
+
+## Development and verification
+
+Frontend/source checks:
+
+```bash
+npm ci
 npm run version:check
 npm run check
 npm run lint
@@ -118,15 +241,24 @@ npm run format:check
 npm run docs:check
 npm run test
 npm run build
-
-cd src-tauri
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+npm run build:web
+npm run build:mobile
 ```
 
-Full guides:
+Rust checks:
 
+```bash
+cd src-tauri
+cargo fmt --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
+```
+
+CI runs the desktop, web, and mobile frontend bundles from the committed npm lockfile and validates Rust against the committed Cargo lockfile so portability and dependency drift regressions fail before merge. Signed Android/iOS artifacts still require their real platform release environments.
+
+## Documentation
+
+- [Cross-platform support](docs/platforms.md)
 - [Setup](docs/setup.md)
 - [Development](docs/development.md)
 - [Architecture](docs/architecture.md)
@@ -136,80 +268,60 @@ Full guides:
 - [Troubleshooting](docs/troubleshooting.md)
 - [Accessibility](docs/accessibility.md)
 - [Performance](docs/performance.md)
+- [Architecture decisions](docs/adr)
 
 ## Build and release
 
-Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Before tagging, verify that the intended tag matches the package version.
+Before packaging, install the locked npm graph and verify synchronized application identity:
 
 ```bash
+npm ci
 npm run version:check
 npm run release:tag-check -- v2.0.12
+```
+
+Desktop package:
+
+```bash
 npm run tauri:build
 ```
 
-After collecting final platform artifacts into one directory, generate and verify a SHA-256 manifest:
+Web/PWA bundle:
+
+```bash
+npm run build:web
+```
+
+Tagged GitHub release jobs use `npm ci` and verify the committed Cargo lockfile before platform packaging. Android and iOS packages use their platform commands documented above. Final store signing, notarization, provisioning, screenshots, store metadata, and native-device acceptance are release-environment gates rather than assumptions made by source code.
+
+After collecting final release artifacts into one directory, generate and verify a SHA-256 manifest:
 
 ```bash
 npm run release:checksums -- artifacts release-metadata/SHA256SUMS.txt
 npm run release:checksums:verify -- artifacts release-metadata/SHA256SUMS.txt
 ```
 
-Tagged releases are automated by `.github/workflows/release.yml`. See [docs/release.md](docs/release.md) before publishing artifacts.
-
-## Architecture overview
-
-```text
-startup.ts
-      │ local storage probe / guarded boot
-      ▼
-TypeScript/Vite UI
-      │ Tauri IPC
-      ▼
-commands.rs
-      │
-      ├── domain/analyzer.rs  ← pure counting/frequency logic
-      ├── fileio.rs           ← encoding + streaming adapter
-      ├── report.rs           ← validated import + privacy-safe/custom Markdown export
-      └── settings_backup.rs  ← validated local preference backup/restore
-```
-
-The frontend keeps comparison, Markdown export-option handling, Quick actions, recent-metadata handling, local analysis presets, settings parsing, storage reliability, and presentation helpers separate from the Rust analysis domain. Architecture decisions are recorded in [docs/adr](docs/adr).
+See [docs/release.md](docs/release.md) before publishing artifacts.
 
 ## Report compatibility
 
-Application version **2.0.12** continues to emit report schema **v2**. App versioning and report-schema versioning are deliberately independent. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
+Application version **2.0.12** continues to emit report schema **v2**. Application versioning and report-schema versioning are deliberately independent.
 
-Existing valid schema-v2 reports are the stable compatibility target for the TextLens 2.x line. The full compatibility rules and change requirements are documented in [docs/report-schema.md](docs/report-schema.md).
+TextLens can import schema-v1 JSON reports for comparison. Metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed. Existing valid schema-v2 reports remain the stable compatibility target for the TextLens 2.x line.
 
-Imported reports are size-limited and validated before they reach the UI. Comparison uses only exported aggregate report data and never reconstructs or stores the original source text. JSON customization is intentionally not supported so exported JSON continues to satisfy the full report schema.
+See [docs/report-schema.md](docs/report-schema.md) for the complete compatibility contract.
 
 ## Privacy and security
 
-TextLens is designed for offline use. It does not send analyzed text to a server. Full source paths are not included in the analysis report, exported reports intentionally omit source document contents, Markdown can additionally omit display-name/analysis/encoding metadata, imported report comparison reads aggregate report data only, recent-file metadata is path-free and opt-in, analysis presets contain configuration only, and settings backups contain preferences only. The update section performs no background check and opens the official Releases page only when requested. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+TextLens is designed for local analysis. It does not send analyzed text to a TextLens server. Full source paths/provider URIs are not included in reports; exported reports omit source document contents; recent-file metadata is path-free and opt-in; presets contain configuration only; and settings backups contain preferences only.
 
-Do not report security vulnerabilities in a public issue.
+The update section performs no background check and opens the official Releases page only after explicit user action. The hosted Web/PWA build necessarily downloads its static application assets from its host, but analysis happens locally after those assets load.
 
-## Testing
-
-```bash
-npm run version:check
-npm run check
-npm run lint
-npm run format:check
-npm run docs:check
-npm run test
-npm run build
-cd src-tauri
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
-```
-
-See [docs/testing.md](docs/testing.md) for manual acceptance, report customization/import compatibility, Unicode, settings, local analysis presets, recent metadata, Quick actions, and large-file checks.
+See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md). Do not report security vulnerabilities in a public issue.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Report-schema changes must preserve or deliberately document compatibility behavior and update [docs/report-schema.md](docs/report-schema.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Changes to report compatibility must update [docs/report-schema.md](docs/report-schema.md). Platform-specific changes must preserve the local-first boundary and update [docs/platforms.md](docs/platforms.md) when behavior or prerequisites change.
 
 ## Roadmap
 

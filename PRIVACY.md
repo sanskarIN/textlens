@@ -2,91 +2,181 @@
 
 ## Summary
 
-TextLens analyzes text locally on your computer. Core functionality requires no account, analytics service, advertising SDK, or cloud text-processing API.
+TextLens analyzes text locally on the device running the application. Core analysis requires no TextLens account, analytics service, advertising SDK, or cloud text-processing API.
+
+The supported source runtimes are Windows, macOS, Linux, Android, iOS/iPadOS, and Web/PWA (including ChromeOS through the PWA). Their file APIs differ, but the privacy boundary is the same: analyzed source text is processed locally and is not intentionally uploaded to a TextLens backend.
 
 ## Data handled
 
-TextLens may process typed/pasted text, local files you explicitly select, local analysis settings, reusable local analysis presets, optional recent-file metadata you explicitly enable, saved aggregate reports you explicitly select for comparison, and reports or settings backups you explicitly export.
+TextLens may process:
+
+- typed or pasted text;
+- a local/sandboxed file you explicitly select;
+- a mobile document-provider URI only for the duration of an explicit open/save workflow;
+- local analysis settings;
+- reusable local analysis presets;
+- optional recent-file metadata you explicitly enable;
+- saved aggregate reports you explicitly select for comparison;
+- reports or settings backups you explicitly export.
 
 ## Pasted text
 
-Pasted text crosses only the local Tauri IPC boundary to the bundled Rust backend for analysis. It is not intentionally transmitted to an external server.
+### Native desktop runtime
+
+On Windows, macOS, and Linux, pasted text crosses only the local Tauri IPC boundary to the bundled Rust backend for analysis.
+
+### Web/PWA and mobile portable analyzer
+
+On Web/PWA and Android/iOS, pasted text is analyzed directly in the local browser/WebView TypeScript runtime.
+
+Neither path intentionally transmits pasted text to an external analysis server.
 
 ## Opened files
 
-The Rust backend reads the file you choose. Compatible large files are processed incrementally rather than retained in full. The analysis result stores at most the display filename, not the full source path.
+Files are accessed only after explicit selection.
+
+### Desktop
+
+Desktop builds use the Rust file layer. Compatible large desktop files can be processed incrementally rather than retained in full.
+
+### Web/PWA
+
+The browser provides a sandboxed `File` only after user selection. TextLens analyzes the selected file in memory with a 64 MiB source-file limit. Browser filesystem paths are neither available nor required.
+
+### Android and iOS/iPadOS
+
+The mobile shell uses Tauri's native document dialog. Android returns a `content://` URI and iOS/iPadOS returns a `file://` URI for the user-selected resource. TextLens uses the capability-restricted filesystem bridge only to stat/read that selected input or write an explicitly selected export destination.
+
+Before reading a mobile source, TextLens checks that the selected resource is a file and that its reported size is within the 64 MiB portable limit. The byte length is checked again after reading. The resulting bytes are converted into an in-memory file for portable analysis.
+
+The provider URI is not written into `AnalysisReport`, recent-file metadata, presets, settings backups, or exported reports. Analysis results store at most a sanitized display filename and size.
+
+## Encoding
+
+The native and portable runtimes use deterministic local decoding behavior. The portable runtime recognizes UTF-8 BOM, UTF-16 LE/BE BOM, valid UTF-8, and otherwise uses a labelled Windows-1252 fallback.
+
+No source sample is sent to an online encoding-detection service.
 
 ## Settings
 
-Theme, reading/speaking rates, result limits, keyword exclusions, the recent-file-metadata opt-in, and reduced-motion preferences are stored locally in WebView application storage.
+Theme, reading/speaking rates, result limits, keyword exclusions, recent-file-metadata opt-in, and reduced-motion preferences are stored in local browser/WebView application storage where available.
 
-Keyword exclusions are preferences only. They filter the displayed/exported keyword summary while core counts and n-grams continue to use the complete analyzed token stream.
+Keyword exclusions are preferences only. They filter the keyword summary while core counts and n-grams continue to use the complete analyzed token stream.
 
-TextLens can export a versioned settings backup when you explicitly choose **Back up settings**. That backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or identifiers. Restored backups are size-limited and strictly validated before use. Older compatible settings backups that do not contain newer preferences restore them to privacy-preserving defaults.
+TextLens can export a versioned settings backup after explicit interaction. The backup contains preferences only; it does not contain analyzed text, document paths/provider URIs, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or external identifiers.
+
+Restored backups are size-limited and validated before use. Compatible older backups restore newer fields to defined defaults.
 
 ### Storage availability
 
-WebView storage is an optional local persistence mechanism, not a prerequisite for analysis. TextLens contains storage exceptions rather than allowing a blocked, unavailable, corrupted, or quota-limited local storage implementation to crash the application.
+Local persistence is optional infrastructure, not a prerequisite for analysis.
 
-At startup TextLens probes local preference storage. When persistent storage is unusable and the WebView permits a safe replacement, the app uses a process-local in-memory fallback for the current session and reports that preferences are session-only. The fallback contains only the same local preference/metadata categories described in this policy, is not transmitted anywhere, and disappears when the process ends.
+At startup TextLens probes preference storage. When persistent storage is unavailable and a safe local replacement can be installed, TextLens uses a process-local/session-only memory fallback and reports that preferences are not durable.
 
-If neither persistent storage nor the local fallback can be established, the guarded startup path renders a local recovery message rather than silently switching to a network service.
+The fallback is local, is not transmitted anywhere, and disappears when the process/session ends.
+
+If neither persistent storage nor the local fallback can be established, guarded startup renders a local recovery message instead of silently switching to a network service.
 
 ## Local analysis presets
 
-Analysis presets are optional reusable configurations stored only in local WebView application storage. A preset can contain only a display name, reading and speaking rates, top-keyword and top-n-gram limits, and keyword exclusions.
+Analysis presets are optional local configurations. A preset can contain only:
 
-Presets never contain analyzed text, source file paths, recent-file entries, report contents, encoding samples, theme choice, reduced-motion preference, or the recent-file-history opt-in. Preset names and collections are bounded, and persisted values are validated before use.
+- a display name;
+- reading and speaking rates;
+- top-keyword and top-n-gram limits;
+- keyword exclusions.
 
-Presets are device-local and are not included in the current settings backup schema. They remain stored until you delete them individually or clear the application WebView storage. If TextLens is running on the session-only storage fallback, preset changes for that session are not durable after exit.
+Presets never contain analyzed text, source paths/provider URIs, recent-file entries, reports, encoding samples, credentials, theme choice, reduced-motion preference, or the recent-file-history opt-in.
+
+Preset names/collections are bounded and parsed before use. Presets are device/browser-profile local and are not part of the current settings-backup schema.
 
 ## Optional recent-file metadata
 
-Recent-file metadata is **off by default**. If you enable it, TextLens stores at most 10 local entries containing only:
+Recent-file metadata is **off by default**. If enabled, TextLens stores at most 10 local entries containing only:
 
 - display filename;
 - analyzed file size;
 - opened timestamp.
 
-Full file paths, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Display names containing path separators are rejected before storage. Two files that share the same display filename intentionally collapse to the newest entry because directory identity is not retained.
+Full file paths, mobile provider URIs, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Path-like display names are rejected before storage.
 
-The Recent files panel provides per-entry removal and a clear-all control. Turning the setting off or restoring default settings deletes the stored recent-file metadata when local persistence is available. The history is informational and cannot reopen a file because TextLens does not retain the path required to do so.
+Recent-file controls allow per-entry removal and clear-all. Turning the feature off or restoring defaults deletes stored recent metadata when local persistence is available.
+
+The history is informational and does not retain enough path/provider information to reopen a file automatically.
 
 ## Analysis exports
 
-Reports are written only to a destination you choose. They contain aggregate metrics/frequencies, a report schema version, encoding diagnostics when applicable, and at most a display filename. They intentionally omit the original source document content and full path.
+Reports are created only after explicit export interaction. They contain aggregate metrics/frequencies, report schema version, encoding diagnostics when applicable, and at most display filename metadata.
 
-JSON exports always remain complete canonical TextLens analysis reports because JSON is also used for validated report import and comparison. Markdown exports can be customized to omit source metadata, core metrics, keywords, bigrams, trigrams, or whitespace diagnostics. The original document text is never offered as an export option.
+They intentionally omit the original source document content and full path/provider URI.
 
-Markdown section choices are kept only in current UI memory. They are not persisted as a settings record or export history. If source metadata is disabled, the Markdown output omits the display filename, analysis mode, and encoding metadata while retaining the report schema marker and TextLens attribution.
+JSON exports remain complete canonical TextLens analysis reports because JSON is used for validated import/comparison. Markdown exports can omit source metadata, core metrics, keywords, bigrams, trigrams, or whitespace diagnostics.
+
+The original document text is never an export option.
+
+Markdown section choices are UI state rather than a source-document history record.
 
 ## Saved-report comparison
 
-When you choose **Compare report**, TextLens reads only the JSON report file you select. Imported reports are size-limited and validated locally before presentation. Comparison operates on aggregate counts and exported top-keyword entries. It does not open, request, reconstruct, or persist the original source document.
+When **Compare report** is used, TextLens reads only the report selected by the user. Imported reports are size-limited and validated locally before presentation.
 
-The imported baseline report exists in application memory only for the comparison operation/dialog. TextLens does not create a cloud or local history database from compared reports.
+Comparison operates on aggregate counts and exported frequency data. It does not open, request, reconstruct, or persist the original source document.
+
+The imported baseline is kept only as local application state for the comparison workflow; TextLens does not create a cloud report-history service.
+
+## PWA and service-worker storage
+
+The Web/PWA build can register `public/sw.js` so the application shell can relaunch offline after its static assets have been fetched.
+
+The service worker is intended to cache:
+
+- the application root/shell;
+- the manifest/logo and install icons;
+- same-origin JavaScript/CSS/static application assets.
+
+It is not passed analyzed document contents by the analyzer and does not intentionally cache imported source files, report contents, settings backups, or generated exports.
+
+A hosted PWA necessarily downloads its static application files from the host. After those assets load, text analysis occurs locally.
+
+## Mobile platform storage and sharing
+
+Android and iOS/iPadOS use native platform document providers rather than treating provider URIs as ordinary desktop paths. Tauri capabilities are limited to the core/dialog/opener APIs plus filesystem stat/read/write commands required by user-selected document workflows.
+
+The user remains responsible for the destination/provider chosen when exporting a generated local file. Once an exported file is handed to an operating-system provider or another application, that provider/application's privacy behavior applies.
+
+TextLens does not attach analyzed source text or provider URIs to the external Releases, GitHub, or funding URLs.
 
 ## Quick actions
 
-Quick action search terms are UI state inside the local WebView. They are used only to filter the built-in list of actions and are not stored or transmitted.
+Quick action search terms are local UI state used only to filter built-in actions. They are not stored as analytics or transmitted to a TextLens backend.
 
 ## Updates and external links
 
-TextLens does not poll an update server in the background. The Settings update section opens the official GitHub Releases page only after you explicitly press its button. GitHub, source, and Buy Me a Coffee links likewise open only after explicit user interaction.
+TextLens does not poll an update server in the background.
 
-Opening an external page transfers control to your system browser, where that site's own privacy practices apply. Document text is not attached to these URLs by TextLens.
+The Settings update section opens the official GitHub Releases page only after explicit user interaction. GitHub source and Buy Me a Coffee links likewise open only after explicit interaction.
+
+Opening an external page transfers control to the browser/operating system, where that site's own privacy practices apply.
 
 ## Network behavior
 
-Core analysis, local analysis presets, settings backup/restore, report export customization, report comparison, keyword exclusions, recent-file metadata, Quick actions, and startup recovery need no network.
+Core analysis, presets, settings backup/restore, report export customization, report comparison, keyword exclusions, recent-file metadata, Quick actions, and startup recovery do not require a TextLens backend.
+
+A Web/PWA deployment uses network access to fetch its static application assets when they are not already available locally. Tauri mobile/desktop packaging can also open user-requested external links. These behaviors are separate from document analysis.
 
 ## Logging
 
-Production code must never log raw analyzed text, full private document paths, imported report contents, credentials, authentication data, or other sensitive content. Current analysis logging records operation names and aggregate input byte counts only; file/report/settings operations log operation names without paths.
+Production code must never log raw analyzed text, full private document paths, mobile provider URIs, imported report contents, credentials, authentication data, or other sensitive content.
+
+Native analysis logging is limited to operation/aggregate diagnostics and must not include private source content. Portable analysis does not add a remote telemetry endpoint.
 
 ## Retention
 
-There is no cloud retention system. Clear the editor to remove its current value; restore default Settings to replace local preferences with defaults and clear recent-file metadata when local persistence is available. Analysis presets remain until individually deleted or application WebView storage is cleared. Markdown export section choices are session-only UI state. Any report or settings backup you save is retained at the local filesystem location you selected until you delete it.
+TextLens has no cloud document-retention system.
+
+Clear the editor to remove its current visible value. Restore default Settings to replace local preferences with defaults and clear recent-file metadata when persistence is available. Delete analysis presets individually or clear application/browser storage. Exported reports/settings backups remain wherever the user or operating-system provider saved them until the user deletes them.
+
+For a PWA, uninstalling the app may not automatically clear all browser site data; browser/site-storage controls govern that data lifecycle.
 
 ## Contact
 

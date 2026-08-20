@@ -53,3 +53,22 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Reaffirm the deterministic conservative encoding policy rather than adding unjustified statistical guessing.
 - [x] Keep release tag/version and checksum integrity tooling in the release path.
 - [x] Keep remaining native packaging, signing, accessibility, and screenshot work as evidence-based external release gates.
+
+## 2.0.12 cross-platform source milestone
+
+- [x] Preserve the native Rust/Tauri runtime for Windows, macOS, and Linux.
+- [x] Add a browser-local Web/PWA runtime with the same report-schema-v2 contract.
+- [x] Add installable/offline PWA metadata, raster install icons, Apple touch icon, and application-shell caching.
+- [x] Support ChromeOS through the Web/PWA route.
+- [x] Add Tauri Android and iOS/iPadOS build configurations and development commands.
+- [x] Add a shared portable TypeScript analyzer for Web and mobile.
+- [x] Use native Android/iOS document-provider dialogs and scoped filesystem access instead of desktop path assumptions.
+- [x] Keep Android `content://` and iOS `file://` provider handles out of reports and recent-file metadata.
+- [x] Add mobile safe-area, touch, orientation-friendly, and narrow-screen layout hardening.
+- [x] Build desktop, Web/PWA, and mobile frontend modes in CI.
+- [x] Build a Web/PWA artifact on tagged release workflows.
+- [x] Document cross-platform prerequisites, capability boundaries, testing, privacy, and source-vs-release evidence.
+- [ ] Produce and verify signed Android APK/AAB artifacts in a configured Android release environment.
+- [ ] Produce and verify signed iOS/iPadOS archives in a configured macOS/Xcode release environment.
+- [ ] Deploy the PWA to production HTTPS and verify install/offline behavior on target browsers/ChromeOS.
+- [ ] Complete physical-device acceptance on representative Android/iPhone/iPad devices.

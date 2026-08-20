@@ -1,9 +1,23 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
-export default defineConfig({
+const portableAliases = {
+  "@tauri-apps/api/core": fileURLToPath(
+    new URL("./src/platform/web-tauri-core-guard.ts", import.meta.url),
+  ),
+  "@tauri-apps/api/app": fileURLToPath(new URL("./src/platform/web-app.ts", import.meta.url)),
+  "@tauri-apps/plugin-dialog": fileURLToPath(new URL("./src/platform/web-dialog.ts", import.meta.url)),
+  "@tauri-apps/plugin-opener": fileURLToPath(new URL("./src/platform/web-opener.ts", import.meta.url)),
+};
+
+export default defineConfig(({ mode }) => ({
   clearScreen: false,
+  base: mode === "web" ? "./" : undefined,
+  resolve: {
+    alias: mode === "web" || mode === "mobile" ? portableAliases : {},
+  },
   server: {
     port: 1420,
     strictPort: true,
@@ -17,4 +31,4 @@ export default defineConfig({
     minify: "esbuild",
     sourcemap: false,
   },
-});
+}));

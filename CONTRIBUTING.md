@@ -15,23 +15,43 @@ Thank you for improving TextLens. The project values focused changes, reproducib
 ```bash
 git clone https://github.com/sanskarIN/textlens.git
 cd textlens
-npm install
+npm ci
 npm run tauri:dev
 ```
+
+Use `npm install` instead of `npm ci` only when you intentionally change npm dependencies and need to update `package-lock.json`.
 
 Run the full suite before a pull request:
 
 ```bash
+npm run version:check
 npm run check
 npm run lint
 npm run format:check
+npm run docs:check
 npm run test
 npm run build
+npm run build:web
+npm run build:mobile
+
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
+
+## Dependency and lockfile discipline
+
+`package-lock.json` and `src-tauri/Cargo.lock` are committed build inputs. Do not delete, hand-edit, or regenerate them casually.
+
+When a dependency manifest changes:
+
+1. refresh the matching lockfile with npm or Cargo;
+2. review manifest and lockfile changes together;
+3. run the full validation suite;
+4. keep unrelated dependency churn out of the same pull request.
+
+CI and release workflows intentionally use `npm ci` and locked Cargo resolution so unexpected dependency drift fails early.
 
 ## Commit style
 
@@ -53,7 +73,7 @@ A pull request should explain the user-visible effect, privacy/security impact, 
 - Treat report/settings imports as untrusted input and preserve size/range/schema validation.
 - Keep report schema compatibility explicit. New fields with changed required semantics should trigger a version decision and compatibility tests.
 - Keep settings backup migrations explicit; old supported backups should have deterministic defaults or an intentional rejection path.
-- Run `cargo fmt` and `cargo clippy`.
+- Run `cargo fmt` and `cargo clippy --locked`.
 
 ### TypeScript/UI
 

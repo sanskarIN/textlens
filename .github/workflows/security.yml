@@ -7,6 +7,10 @@ on:
   schedule:
     - cron: "17 3 * * 1"
 
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -18,11 +22,11 @@ jobs:
     name: CodeQL JavaScript/TypeScript
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
 
   cargo-audit:
     name: Rust dependency audit
@@ -32,11 +36,11 @@ jobs:
       issues: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - name: Generate dependency lock for audit
+      - name: Verify committed Cargo lockfile
         working-directory: src-tauri
-        run: cargo generate-lockfile
+        run: cargo metadata --locked --format-version 1 --no-deps > /dev/null
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

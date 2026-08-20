@@ -1,5 +1,5 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { en } from "./i18n/en";
+import { openUrl } from "./platform/opener";
 
 const RELEASES_URL = "https://github.com/sanskarIN/textlens/releases";
 

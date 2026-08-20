@@ -5,7 +5,9 @@
 Keep these aligned:
 
 - `package.json`
+- `package-lock.json`
 - `src-tauri/Cargo.toml`
+- `src-tauri/Cargo.lock`
 - `src-tauri/tauri.conf.json`
 - About/version UI behavior
 - `CHANGELOG.md`
@@ -35,10 +37,11 @@ Do not move an existing release tag to a different commit.
 ## Preparation
 
 1. Update changelog, roadmap, documentation, and `what_changed.md`.
-2. Generate/refresh dependency lockfiles in an environment with registry access and review the diff. Never hand-author lockfiles.
-3. Run the complete quality suite:
+2. Confirm `package-lock.json` and `src-tauri/Cargo.lock` are committed and synchronized with their manifests. When dependencies intentionally change, refresh the matching lockfile with the normal package manager and review manifest/lockfile diffs together. Never hand-author lockfiles.
+3. Install the exact npm graph and run the complete quality suite:
 
    ```bash
+   npm ci
    npm run version:check
    npm run check
    npm run lint
@@ -46,15 +49,18 @@ Do not move an existing release tag to a different commit.
    npm run docs:check
    npm run test
    npm run build
+   npm run build:web
+   npm run build:mobile
+
    cd src-tauri
    cargo fmt --check
-   cargo clippy --all-targets --all-features -- -D warnings
-   cargo test --all-targets
+   cargo clippy --locked --all-targets --all-features -- -D warnings
+   cargo test --locked --all-targets
    ```
 
-4. Run the release-mode synthetic benchmark and record the result in the release notes or performance evidence.
-5. Build from a clean checkout on Windows, macOS, and Linux.
-6. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
+4. Run the release-mode synthetic benchmark with locked Cargo resolution and record the result in the release notes or performance evidence.
+5. Build from a clean checkout on Windows, macOS, and Linux. For source-supported mobile targets, build/test in the required Android and macOS/Xcode environments before making release claims.
+6. Confirm no secrets, private documents, full private paths/provider URIs, generated signing material, or personal fixture data exist in the diff.
 7. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
 8. Complete the manual accessibility checklist in `docs/accessibility.md`.
 9. Replace repository mock screenshots with real captures from the verified release candidate where possible.
@@ -69,22 +75,41 @@ Before tagging:
 - Export a current schema-v2 analysis report and import it for comparison.
 - Import a synthetic schema-v1 report and verify unavailable vocabulary metrics are not shown as real deltas.
 - Verify future/invalid report versions are rejected.
-- Confirm canonical JSON still excludes raw source text and full source paths.
+- Confirm portable report import enforces native-compatible report invariants.
+- Confirm canonical JSON still excludes raw source text and full source paths/provider URIs.
 - Export a current settings schema-v2 backup and restore it.
 - Restore a synthetic schema-v1 settings backup and verify newer preferences receive documented defaults.
 - Confirm malformed/oversized report and settings files are rejected.
 - Confirm disabling recent-file metadata clears the local metadata store.
-- Confirm a blocked/unavailable WebView storage implementation does not leave a blank startup window; when the memory fallback is available, preferences must be clearly session-only.
+- Confirm a blocked/unavailable WebView/browser storage implementation does not leave a blank startup window; when the memory fallback is available, preferences must be clearly session-only.
 
 ## Automation
 
-Pushing `v*` triggers `.github/workflows/release.yml`, which first verifies that the tag equals `v` plus the application version, then builds on Windows, macOS, and Linux and creates a draft GitHub Release.
+Pushing `v*` triggers `.github/workflows/release.yml`, which first verifies that the tag equals `v` plus the application version. The workflow uses the committed npm lockfile through `npm ci`, verifies the committed Cargo lockfile before desktop packaging, builds the Web/PWA bundle, and builds desktop packages on Windows, macOS, and Linux into a draft GitHub Release.
 
-The draft must remain unpublished until platform artifacts are manually installed and checked. A successful workflow is evidence that packaging completed, not evidence that every runtime behavior or accessibility path was manually verified.
+The Web/PWA artifact is uploaded by the maintained GitHub artifact action. The draft must remain unpublished until platform artifacts are manually installed and checked. A successful workflow is evidence that packaging completed, not evidence that every runtime behavior, store requirement, signing path, PWA deployment behavior, or accessibility path was manually verified.
+
+## Platform release gates
+
+### Desktop
+
+Windows, macOS, and Linux release candidates must be installed and exercised on their target operating systems. Public Windows/macOS distribution should use appropriate signing/notarization where credentials are available.
+
+### Android
+
+Source support and the documented Tauri Android build command do not establish Play Store readiness. Before claiming an Android release, verify the generated project and package on the required Android toolchain, emulator/physical hardware, target-SDK policy, signing configuration, and final APK/AAB.
+
+### iOS/iPadOS
+
+iOS/iPadOS packaging requires macOS/Xcode and Apple signing/provisioning. Before claiming an iOS release, verify Simulator/physical-device behavior, archive validation, provisioning, privacy declarations, and the distributable artifact.
+
+### Web/PWA/ChromeOS
+
+A successful `build:web` proves the static bundle compiles. Before claiming a production PWA deployment, verify HTTPS hosting, manifest/installability, application-relative root/subdirectory paths, service-worker scope/update behavior, offline relaunch, and ChromeOS installed-PWA behavior where claimed.
 
 ## Signing
 
-Development builds can be unsigned. Public distribution should use Windows code signing and Apple Developer ID/notarization where credentials are available. Signing secrets belong only in GitHub Actions secrets and must never be committed to the repository or included in diagnostic logs.
+Development builds can be unsigned. Public distribution should use Windows code signing and Apple Developer ID/notarization where credentials are available. Mobile store builds require their platform-specific signing/provisioning. Signing secrets belong only in protected release/CI secret stores and must never be committed to the repository or included in diagnostic logs.
 
 ## Artifact checksums
 
@@ -106,10 +131,10 @@ The verifier intentionally requires exact coverage: every regular artifact file 
 
 ## Artifact verification
 
-For every supported platform artifact:
+For every supported platform artifact actually produced:
 
-1. Install from a clean user account or clean VM where practical.
-2. Launch with network disconnected and confirm core analysis remains usable.
+1. Install from a clean user account or clean VM/device where practical.
+2. Launch with network disconnected where the platform/runtime permits and confirm core local analysis remains usable after required application assets are available.
 3. Paste multilingual synthetic text and verify core/vocabulary metrics.
 4. Open synthetic UTF-8 and applicable encoding fixtures.
 5. Exercise keyword exclusions.
@@ -117,12 +142,24 @@ For every supported platform artifact:
 7. Opt into recent metadata, open a synthetic file, clear history, then disable the preference.
 8. Export JSON and Markdown reports.
 9. Compare against a saved JSON report.
-10. Exercise Quick actions and all documented keyboard shortcuts.
+10. Exercise Quick actions and applicable keyboard/touch controls.
 11. Confirm the Settings update section does not perform background network requests and opens the official Releases page only after user action.
 12. Confirm the About dialog displays the packaged application version and inspect contact/funding links.
-13. Review focus, reduced motion, scaling, and screen-reader behavior.
-14. Uninstall cleanly and confirm no unexpected startup/service components remain.
-15. Generate and verify the release checksum manifest after collecting the final artifacts.
+13. Review focus, reduced motion, scaling, screen-reader behavior, safe areas, and orientation as applicable.
+14. Inspect network behavior and confirm analyzed source text is not sent to a TextLens backend.
+15. Uninstall cleanly where applicable and confirm no unexpected startup/service components remain.
+16. Generate and verify the release checksum manifest after collecting the final artifacts.
+
+## Release-mode performance smoke test
+
+Native desktop benchmark:
+
+```bash
+cd src-tauri
+cargo run --locked --release --example benchmark -- 16 5
+```
+
+Record machine, OS, Rust toolchain, and input parameters with the result. Portable Web/mobile performance should be profiled separately because it uses an in-memory TypeScript analyzer rather than the native streaming execution model.
 
 ## Release notes
 
