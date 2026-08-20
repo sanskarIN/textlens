@@ -81,8 +81,10 @@ pub async fn export_settings(path: String, settings: SettingsData) -> Result<(),
 #[tauri::command]
 pub async fn import_settings(path: String) -> Result<SettingsData, String> {
     tracing::debug!(operation = "import_settings", "settings restore requested");
-    tauri::async_runtime::spawn_blocking(move || settings_backup::read(PathBuf::from(path).as_path()))
-        .await
-        .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
-        .map_err(|error| error.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        settings_backup::read(PathBuf::from(path).as_path())
+    })
+    .await
+    .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
+    .map_err(|error| error.to_string())
 }
