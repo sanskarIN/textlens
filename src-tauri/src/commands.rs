@@ -46,12 +46,9 @@ pub async fn export_report(
     tauri::async_runtime::spawn_blocking(move || {
         let path = PathBuf::from(path);
         match options {
-            Some(options) => crate::report::write_report_with_options(
-                path.as_path(),
-                &report,
-                &format,
-                options,
-            ),
+            Some(options) => {
+                crate::report::write_report_with_options(path.as_path(), &report, &format, options)
+            }
             None => crate::report::write_report(path.as_path(), &report, &format),
         }
     })
