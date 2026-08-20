@@ -16,7 +16,7 @@
 
 </div>
 
-TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Linux, Android, iPhone/iPad, Web/PWA, and ChromeOS through the PWA**. The desktop runtime uses Rust + Tauri, while Web/PWA and mobile builds use a browser-safe local analysis adapter so document contents stay on the device instead of being sent to a TextLens server.
+TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Linux, Android, iPhone/iPad, Web/PWA, and ChromeOS through the PWA**. Windows/macOS/Linux use the native Rust + Tauri backend, Web/PWA uses browser-local adapters, and Android/iOS combine the portable local analyzer with Tauri's native document-provider dialog/filesystem bridge. Document contents stay on the device instead of being sent to a TextLens server.
 
 ## Preview
 
@@ -35,7 +35,8 @@ TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Li
 - Live analysis for pasted text.
 - Local file analysis with UTF-8, UTF-16 BOM handling, and a labelled Windows-1252 fallback.
 - Desktop streaming analysis for large UTF-8/Windows-1252 files.
-- Browser/mobile in-memory file analysis with an explicit 64 MiB source-file bound.
+- Web/mobile portable in-memory analysis with an explicit 64 MiB selected-source bound.
+- Native Android/iOS document-provider open/save workflows through scoped Tauri dialog/filesystem permissions.
 - Canonical JSON report export plus customizable Markdown export.
 - Source document text is deliberately excluded from every TextLens report.
 - Markdown section picker for source metadata, core metrics, keywords, bigrams, trigrams, and whitespace diagnostics.
@@ -50,7 +51,7 @@ TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Li
 - Light, dark, and system themes.
 - Reduced-motion support and accessible focus/semantic states.
 - Touch-safe mobile layout, safe-area handling, dynamic viewport sizing, and 16 px mobile form controls.
-- Installable PWA manifest and offline application-shell service worker.
+- Installable PWA manifest, 192/512 px raster install icons, Apple touch icon, and offline application-shell service worker.
 - Failure-safe local preference storage with a session-only in-memory fallback.
 - Guarded startup recovery instead of a blank application window.
 - Manual-only update/release link with no background update polling.
@@ -64,8 +65,8 @@ TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Li
 | Windows 10/11 | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
 | macOS | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
 | Linux desktop | Tauri 2 + Rust | ✅ Supported | `npm run tauri:dev` / `npm run tauri:build` |
-| Android | Tauri mobile + portable frontend | ✅ Source supported | `npm run tauri:android:dev` / `npm run tauri:android:build` |
-| iPhone / iPad | Tauri mobile + portable frontend | ✅ Source supported | `npm run tauri:ios:dev` / `npm run tauri:ios:build` |
+| Android | Tauri mobile + portable analyzer + native document URI bridge | ✅ Source supported | `npm run tauri:android:dev` / `npm run tauri:android:build` |
+| iPhone / iPad | Tauri mobile + portable analyzer + native document URI bridge | ✅ Source supported | `npm run tauri:ios:dev` / `npm run tauri:ios:build` |
 | Modern Web | Browser-local runtime | ✅ Supported | `npm run dev:web` / `npm run build:web` |
 | PWA | Browser-local runtime + service worker | ✅ Supported | `npm run build:web` |
 | ChromeOS | Web/PWA | ✅ Supported through PWA | `npm run build:web` |
@@ -76,28 +77,26 @@ See [docs/platforms.md](docs/platforms.md) for prerequisites, architecture, capa
 
 Android/iOS source configuration and build commands are included, but this repository does not claim a signed APK/AAB/IPA or store release unless one has actually been built and verified in the required platform environment. The same evidence rule applies to signed/notarized desktop packages and hosted PWA deployments.
 
-## One UI, two local execution paths
+## One UI, platform-correct local runtimes
 
 TextLens deliberately does not force desktop filesystem assumptions onto browsers or mobile document providers.
 
 ```text
-                               ┌─────────────────────────────┐
-                               │ Shared TypeScript/Vite UI   │
-                               └──────────────┬──────────────┘
-                                              │
-                         ┌────────────────────┴────────────────────┐
-                         │                                         │
-                  desktop/native                           web/mobile
-                         │                                         │
-                 Tauri JavaScript APIs                     Vite aliases
-                         │                                         │
-                    Tauri IPC                              local browser APIs
-                         │                                         │
-              Rust analysis/file/report               TypeScript portable
-                    implementation                     analysis implementation
+                         Shared TypeScript / Vite UI
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+       Windows/macOS/Linux       Web/PWA          Android / iOS
+              │                    │                    │
+       real Tauri APIs       browser adapters      Tauri mobile shell
+              │                    │                    │
+          Tauri IPC         browser File/Blob     native dialog + fs URI
+              │                    │                    │
+        Rust analyzer        portable analyzer     portable analyzer
+       + file streaming      + local downloads     + native open/save
 ```
 
-Desktop builds retain the Rust streaming/file-decoding path. Web/PWA and mobile builds replace only the Tauri-facing JavaScript modules at bundle time with adapters in `src/platform/`; the rest of the UI remains shared. Both analysis paths emit TextLens report schema v2.
+Desktop builds retain the Rust streaming/file-decoding path. Web/PWA and mobile builds use the TypeScript portable analyzer and emit the same TextLens report schema v2. Web uses browser file/download APIs, while Android/iOS use the native Tauri dialog/filesystem plugins for user-selected document-provider URIs.
 
 ## Keyboard shortcuts
 
@@ -191,17 +190,21 @@ The original document text is never an export section. Report comparison operate
 
 The Rust backend owns local file decoding and can stream large UTF-8/Windows-1252 inputs. UTF-16 BOM inputs use full-file decoding where byte-oriented streaming could split code units.
 
-### Web/PWA and mobile portable runtime
+### Web/PWA
 
-The portable runtime uses sandboxed `File`, `TextDecoder`, `Blob`, and local download/document-picker behavior. It detects UTF-8 BOM, UTF-16 LE/BE BOM, valid UTF-8, and otherwise uses a labelled Windows-1252 fallback. Selected text files are bounded to 64 MiB because this runtime analyzes them in memory.
+The web runtime uses sandboxed browser `File`, `TextDecoder`, `Blob`, and local download APIs. It detects UTF-8 BOM, UTF-16 LE/BE BOM, valid UTF-8, and otherwise uses a labelled Windows-1252 fallback. Selected source files are bounded to 64 MiB because the portable analyzer processes them in memory.
 
-Report imports remain bounded to 512 KiB and settings-backup imports to 64 KiB.
+### Android and iOS/iPadOS
+
+The mobile shell uses Tauri's native document picker and scoped filesystem plugin. Android-selected documents are represented by `content://` URIs and iOS-selected documents by `file://` URIs. TextLens validates size, reads only the user-selected resource into the portable analyzer, and writes exports/settings backups only to an explicit native save destination. It does not route those provider URIs through the desktop `std::fs` analysis path.
+
+Portable report imports remain bounded to 512 KiB and settings-backup imports to 64 KiB.
 
 ## PWA behavior
 
 `public/manifest.webmanifest` makes the web build installable on compatible browsers. `public/sw.js` caches the application shell and same-origin application assets for offline relaunch after they have been fetched. It does **not** cache analyzed source documents or generated reports.
 
-The PWA path is also the supported ChromeOS route.
+The PWA includes raster 192×192 and 512×512 install icons plus a 180×180 Apple touch icon. The PWA path is also the supported ChromeOS route.
 
 ## Tauri platform capabilities
 
@@ -210,15 +213,16 @@ Permissions are intentionally split instead of granting one broad capability eve
 - `src-tauri/capabilities/default.json` → Linux, macOS, Windows only.
 - `src-tauri/capabilities/mobile.json` → Android and iOS only.
 
-The application does not request broad shell, process, filesystem, or network capabilities merely to achieve cross-platform packaging.
+Mobile permissions are limited to core defaults, native dialog/opener access, and the filesystem commands needed to stat/read/write a user-selected document. The application does not request broad shell, process, unrestricted filesystem, or network capabilities merely to achieve cross-platform packaging.
 
 ## Tech stack
 
 - **Rust** — native desktop analysis, file decoding/streaming, report validation/import/export, settings backup validation.
 - **Tauri 2** — Windows/macOS/Linux native shell plus Android/iOS mobile shell.
-- **TypeScript** — shared UI and portable Web/mobile analysis adapters.
-- **Web Platform APIs** — sandboxed browser/mobile file selection, decoding, download, and PWA support.
-- **Vite** — mode-specific native/Web/mobile builds and adapter aliases.
+- **Tauri dialog/filesystem/opener plugins** — native Android/iOS document-provider open/save and explicit external navigation.
+- **TypeScript** — shared UI and portable Web/mobile analysis implementation.
+- **Web Platform APIs** — browser file selection, local downloads, decoding, and PWA support.
+- **Vite** — mode-specific native/Web/mobile builds and portable adapter aliases.
 - **Vitest + Rust tests + proptest** — automated verification.
 - **GitHub Actions** — CI, security checks, release automation, and version/tag consistency enforcement.
 
@@ -306,7 +310,7 @@ See [docs/report-schema.md](docs/report-schema.md) for the complete compatibilit
 
 ## Privacy and security
 
-TextLens is designed for local analysis. It does not send analyzed text to a TextLens server. Full source paths are not included in reports; exported reports omit source document contents; recent-file metadata is path-free and opt-in; presets contain configuration only; and settings backups contain preferences only.
+TextLens is designed for local analysis. It does not send analyzed text to a TextLens server. Full source paths/provider URIs are not included in reports; exported reports omit source document contents; recent-file metadata is path-free and opt-in; presets contain configuration only; and settings backups contain preferences only.
 
 The update section performs no background check and opens the official Releases page only after explicit user action. The hosted Web/PWA build necessarily downloads its static application assets from its host, but analysis happens locally after those assets load.
 
