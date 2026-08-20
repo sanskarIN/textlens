@@ -1,4 +1,4 @@
-import type { AnalysisOptions, AnalysisReport, EncodingInfo, FrequencyItem } from "../types";
+import type { AnalysisReport, EncodingInfo, FrequencyItem } from "../types";
 import { getBrowserFile } from "./web-file-store";
 import { invoke as portableInvoke } from "./web-tauri-core";
 
@@ -42,7 +42,7 @@ async function analyzeFileWithNativeParity(args: Record<string, unknown>): Promi
   const decoded = decodePortableTextForParity(bytes);
   const report = await portableInvoke<AnalysisReport>("analyze_text", {
     text: decoded.text,
-    options: args.options as AnalysisOptions,
+    options: args.options,
   });
   const result: AnalysisReport = {
     ...report,
@@ -159,58 +159,86 @@ function decodeUtf16(
 
 function decodeWindows1252(bytes: Uint8Array): { text: string; hadErrors: boolean } {
   let hadErrors = false;
-  let text = "";
+  const output = new Array<string>(bytes.byteLength);
 
-  for (const byte of bytes) {
-    const character = windows1252Character(byte);
+  for (let index = 0; index < bytes.byteLength; index += 1) {
+    const character = windows1252Character(bytes[index]);
     if (character === null) {
-      text += "\uFFFD";
+      output[index] = "\uFFFD";
       hadErrors = true;
     } else {
-      text += character;
+      output[index] = character;
     }
   }
 
-  return { text, hadErrors };
+  return { text: output.join(""), hadErrors };
 }
 
 function windows1252Character(byte: number): string | null {
-  const special = new Map<number, string | null>([
-    [0x80, "€"],
-    [0x81, null],
-    [0x82, "‚"],
-    [0x83, "ƒ"],
-    [0x84, "„"],
-    [0x85, "…"],
-    [0x86, "†"],
-    [0x87, "‡"],
-    [0x88, "ˆ"],
-    [0x89, "‰"],
-    [0x8a, "Š"],
-    [0x8b, "‹"],
-    [0x8c, "Œ"],
-    [0x8d, null],
-    [0x8e, "Ž"],
-    [0x8f, null],
-    [0x90, null],
-    [0x91, "‘"],
-    [0x92, "’"],
-    [0x93, "“"],
-    [0x94, "”"],
-    [0x95, "•"],
-    [0x96, "–"],
-    [0x97, "—"],
-    [0x98, "˜"],
-    [0x99, "™"],
-    [0x9a, "š"],
-    [0x9b, "›"],
-    [0x9c, "œ"],
-    [0x9d, null],
-    [0x9e, "ž"],
-    [0x9f, "Ÿ"],
-  ]);
-
-  return special.has(byte) ? (special.get(byte) ?? null) : String.fromCodePoint(byte);
+  switch (byte) {
+    case 0x80:
+      return "€";
+    case 0x81:
+    case 0x8d:
+    case 0x8f:
+    case 0x90:
+    case 0x9d:
+      return null;
+    case 0x82:
+      return "‚";
+    case 0x83:
+      return "ƒ";
+    case 0x84:
+      return "„";
+    case 0x85:
+      return "…";
+    case 0x86:
+      return "†";
+    case 0x87:
+      return "‡";
+    case 0x88:
+      return "ˆ";
+    case 0x89:
+      return "‰";
+    case 0x8a:
+      return "Š";
+    case 0x8b:
+      return "‹";
+    case 0x8c:
+      return "Œ";
+    case 0x8e:
+      return "Ž";
+    case 0x91:
+      return "‘";
+    case 0x92:
+      return "’";
+    case 0x93:
+      return "“";
+    case 0x94:
+      return "”";
+    case 0x95:
+      return "•";
+    case 0x96:
+      return "–";
+    case 0x97:
+      return "—";
+    case 0x98:
+      return "˜";
+    case 0x99:
+      return "™";
+    case 0x9a:
+      return "š";
+    case 0x9b:
+      return "›";
+    case 0x9c:
+      return "œ";
+    case 0x9e:
+      return "ž";
+    case 0x9f:
+      return "Ÿ";
+    default:
+      return String.fromCodePoint(byte);
+  }
 }
 
 function startsWith(bytes: Uint8Array, prefix: readonly number[]): boolean {
