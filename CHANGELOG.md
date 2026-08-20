@@ -4,7 +4,30 @@ All notable TextLens changes are documented here.
 
 ## [Unreleased]
 
-No user-visible changes have been added after the 2.0.12 source milestone yet.
+### Added
+
+- Portable local analysis runtime for Web/PWA and Tauri Android/iOS frontend builds.
+- Browser-safe adapters for text/file analysis, report import/export, settings backup/restore, version display, local file selection/download, and explicit external navigation.
+- Web/PWA build and development modes plus an installable manifest and offline application-shell service worker.
+- Android and iOS Tauri build commands with platform-specific configuration selecting the portable mobile frontend mode.
+- Platform-scoped Tauri mobile capability configuration separate from desktop capabilities.
+- Cross-platform safe-area, touch-target, dynamic-viewport, and narrow-screen layout hardening.
+- Portable analyzer regression coverage for core counts, vocabulary metrics, keyword exclusions, Unicode graphemes, n-grams, and mixed line endings.
+- Dedicated cross-platform documentation in `docs/platforms.md` and ADR-0012.
+
+### Changed
+
+- TextLens is now structured for Windows, macOS, Linux, Android, iOS/iPadOS, Web/PWA, and ChromeOS through the PWA instead of being desktop-only.
+- Frontend CI now builds native desktop, Web/PWA, and mobile frontend modes.
+- Desktop builds retain the Rust streaming/file-decoding path while Web/mobile builds use sandbox-safe local file semantics and an explicit 64 MiB in-memory source-file bound.
+- README, setup, architecture, and testing documentation now distinguish source support from signed/store release evidence.
+
+### Security
+
+- Desktop and mobile Tauri capabilities are explicitly scoped to their platform families instead of sharing an unqualified desktop capability.
+- Portable external navigation permits only HTTP, HTTPS, and mailto protocols.
+- The PWA service worker caches application-shell/static assets rather than analyzed source documents or generated reports.
+- Cross-platform support does not add a cloud text-analysis service or broad shell/process/filesystem permission grant.
 
 ## [2.0.12] - 2026-08-19
 
