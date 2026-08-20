@@ -222,6 +222,8 @@ mod tests {
         let path = missing.join("settings.json");
         let error = write(&path, sample_settings()).unwrap_err();
         assert!(matches!(error, AppError::MissingDestination));
-        assert!(!error.to_string().contains(missing.to_string_lossy().as_ref()));
+        assert!(!error
+            .to_string()
+            .contains(missing.to_string_lossy().as_ref()));
     }
 }
