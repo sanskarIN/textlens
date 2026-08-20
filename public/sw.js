@@ -1,5 +1,13 @@
-const CACHE_NAME = "textlens-pwa-v2.0.12-1";
-const CORE_ASSETS = ["/", "/index.html", "/manifest.webmanifest", "/logo.svg"];
+const CACHE_NAME = "textlens-pwa-v2.0.12-2";
+const CORE_ASSETS = [
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/logo.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
