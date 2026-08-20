@@ -14,23 +14,29 @@ export async function pickBrowserFile(accept: string): Promise<string | null> {
     input.style.left = "-10000px";
     input.setAttribute("aria-hidden", "true");
 
-    const cleanup = (): void => input.remove();
+    let settled = false;
+    const finish = (value: string | null): void => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(value);
+    };
+
     input.addEventListener(
       "change",
       () => {
         const file = input.files?.[0];
         if (!file) {
-          cleanup();
-          resolve(null);
+          finish(null);
           return;
         }
         const token = `${FILE_TOKEN_PREFIX}${Date.now()}-${counter++}`;
         files.set(token, file);
-        cleanup();
-        resolve(token);
+        finish(token);
       },
       { once: true },
     );
+    input.addEventListener("cancel", () => finish(null), { once: true });
 
     document.body.append(input);
     input.click();
@@ -48,10 +54,27 @@ export function makeDownloadToken(defaultPath?: string): string {
   return `${DOWNLOAD_TOKEN_PREFIX}${encodeURIComponent(safeName)}`;
 }
 
-export function downloadBrowserText(token: string, content: string, mimeType: string): void {
-  if (!token.startsWith(DOWNLOAD_TOKEN_PREFIX)) throw new Error("Invalid browser download target.");
+export async function downloadBrowserText(
+  token: string,
+  content: string,
+  mimeType: string,
+): Promise<void> {
+  if (!token.startsWith(DOWNLOAD_TOKEN_PREFIX)) {
+    throw new Error("Invalid browser download target.");
+  }
+
   const filename = decodeURIComponent(token.slice(DOWNLOAD_TOKEN_PREFIX.length));
   const blob = new Blob([content], { type: mimeType });
+
+  if (import.meta.env.MODE === "mobile" && "share" in navigator && "canShare" in navigator) {
+    const file = new File([blob], filename, { type: mimeType });
+    const shareData: ShareData = { files: [file], title: filename };
+    if (navigator.canShare(shareData)) {
+      await navigator.share(shareData);
+      return;
+    }
+  }
+
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
