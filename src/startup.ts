@@ -28,7 +28,8 @@ async function start(): Promise<void> {
 async function registerWebServiceWorker(): Promise<void> {
   if (import.meta.env.MODE !== "web" || !("serviceWorker" in navigator)) return;
   try {
-    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    const scriptUrl = new URL("sw.js", document.baseURI);
+    await navigator.serviceWorker.register(scriptUrl);
   } catch {
     // PWA installation/offline caching is an enhancement; analysis must still start if registration is blocked.
   }
