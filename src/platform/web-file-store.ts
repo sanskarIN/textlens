@@ -149,5 +149,11 @@ function mobileDisplayName(uri: string): string {
 
 function sanitizeFilename(value: string): string {
   const leaf = value.split(/[\\/]/).pop() || "textlens-export.txt";
-  return leaf.replace(/[<>:"|?*\u0000-\u001f]/g, "_").slice(0, 180) || "textlens-export.txt";
+  const sanitized = Array.from(leaf, (character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 0x1f || '<>:"|?*'.includes(character) ? "_" : character;
+  })
+    .slice(0, 180)
+    .join("");
+  return sanitized || "textlens-export.txt";
 }
