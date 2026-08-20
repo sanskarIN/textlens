@@ -55,7 +55,7 @@ TextLens is an open-source, privacy-first text analyzer for **Windows, macOS, Li
 - Failure-safe local preference storage with a session-only in-memory fallback.
 - Guarded startup recovery instead of a blank application window.
 - Manual-only update/release link with no background update polling.
-- Release-tag validation plus deterministic SHA-256 artifact checksum tools.
+- Committed npm/Cargo lockfiles, deterministic CI/release dependency resolution, release-tag validation, and SHA-256 artifact checksum tools.
 - No account, analytics SDK, cloud analysis API, or donation gate.
 
 ## Supported platforms
@@ -118,14 +118,14 @@ Install Node.js 20.19+ (or 22.12+), Rust stable via `rustup`, and Tauri's OS-nat
 ```bash
 git clone https://github.com/sanskarIN/textlens.git
 cd textlens
-npm install
+npm ci
 npm run tauri:dev
 ```
 
 ### Web/PWA
 
 ```bash
-npm install
+npm ci
 npm run dev:web
 ```
 
@@ -136,14 +136,14 @@ npm run build:web
 npm run preview:web
 ```
 
-Deploy `dist/` from HTTPS for production PWA/service-worker behavior.
+Deploy `dist/` from HTTPS for production PWA/service-worker behavior. Application assets, manifest entries, and service-worker scope are base-path-aware for root or configured subdirectory hosting.
 
 ### Android
 
 After installing the Android/Tauri prerequisites described in [docs/platforms.md](docs/platforms.md):
 
 ```bash
-npm install
+npm ci
 npm run tauri:android:init
 npm run tauri:android:dev
 ```
@@ -159,7 +159,7 @@ npm run tauri:android:build
 iOS development requires macOS/Xcode plus the Tauri iOS prerequisites. Then:
 
 ```bash
-npm install
+npm ci
 npm run tauri:ios:init
 npm run tauri:ios:dev
 ```
@@ -169,6 +169,8 @@ Build command:
 ```bash
 npm run tauri:ios:build
 ```
+
+Use `npm install` instead of `npm ci` only when intentionally changing npm dependencies and refreshing `package-lock.json`.
 
 ## Privacy-first local preferences
 
@@ -192,17 +194,17 @@ The Rust backend owns local file decoding and can stream large UTF-8/Windows-125
 
 ### Web/PWA
 
-The web runtime uses sandboxed browser `File`, `TextDecoder`, `Blob`, and local download APIs. It detects UTF-8 BOM, UTF-16 LE/BE BOM, valid UTF-8, and otherwise uses a labelled Windows-1252 fallback. Selected source files are bounded to 64 MiB because the portable analyzer processes them in memory.
+The web runtime uses sandboxed browser `File`, `TextDecoder`, `Blob`, and local download APIs. It uses the same 32 KiB encoding-detection sample contract as the native path, handles UTF-8 BOM and UTF-16 LE/BE BOM, records malformed decode behavior, and otherwise uses the same labelled Windows-1252 mapping semantics as the Rust implementation. Selected source files are bounded to 64 MiB because the portable analyzer processes them in memory.
 
 ### Android and iOS/iPadOS
 
 The mobile shell uses Tauri's native document picker and scoped filesystem plugin. Android-selected documents are represented by `content://` URIs and iOS-selected documents by `file://` URIs. TextLens validates size, reads only the user-selected resource into the portable analyzer, and writes exports/settings backups only to an explicit native save destination. It does not route those provider URIs through the desktop `std::fs` analysis path.
 
-Portable report imports remain bounded to 512 KiB and settings-backup imports to 64 KiB.
+Portable report imports remain bounded to 512 KiB and settings-backup imports to 64 KiB. Portable report import additionally applies native-compatible report invariants before comparison/use.
 
 ## PWA behavior
 
-`public/manifest.webmanifest` makes the web build installable on compatible browsers. `public/sw.js` caches the application shell and same-origin application assets for offline relaunch after they have been fetched. It does **not** cache analyzed source documents or generated reports.
+`public/manifest.webmanifest` makes the web build installable on compatible browsers. `public/sw.js` caches only the application shell and static same-origin application assets needed for offline relaunch; it does **not** intentionally cache analyzed source documents or generated reports. Asset URLs and service-worker registration are application-base-relative instead of assuming deployment at `/`.
 
 The PWA includes raster 192×192 and 512×512 install icons plus a 180×180 Apple touch icon. The PWA path is also the supported ChromeOS route.
 
@@ -224,14 +226,14 @@ Mobile permissions are limited to core defaults, native dialog/opener access, an
 - **Web Platform APIs** — browser file selection, local downloads, decoding, and PWA support.
 - **Vite** — mode-specific native/Web/mobile builds and portable adapter aliases.
 - **Vitest + Rust tests + proptest** — automated verification.
-- **GitHub Actions** — CI, security checks, release automation, and version/tag consistency enforcement.
+- **GitHub Actions** — deterministic CI, security checks, dependency review, release automation, and version/tag consistency enforcement.
 
 ## Development and verification
 
 Frontend/source checks:
 
 ```bash
-npm install
+npm ci
 npm run version:check
 npm run check
 npm run lint
@@ -248,11 +250,11 @@ Rust checks:
 ```bash
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
-CI runs the desktop, web, and mobile frontend bundles so portability regressions are caught even when a full signed Android/iOS package cannot be produced on the Linux frontend runner.
+CI runs the desktop, web, and mobile frontend bundles from the committed npm lockfile and validates Rust against the committed Cargo lockfile so portability and dependency drift regressions fail before merge. Signed Android/iOS artifacts still require their real platform release environments.
 
 ## Documentation
 
@@ -270,9 +272,10 @@ CI runs the desktop, web, and mobile frontend bundles so portability regressions
 
 ## Build and release
 
-Before packaging, verify synchronized application identity:
+Before packaging, install the locked npm graph and verify synchronized application identity:
 
 ```bash
+npm ci
 npm run version:check
 npm run release:tag-check -- v2.0.12
 ```
@@ -289,7 +292,7 @@ Web/PWA bundle:
 npm run build:web
 ```
 
-Android and iOS packages use their platform commands documented above. Final store signing, notarization, provisioning, screenshots, store metadata, and native-device acceptance are release-environment gates rather than assumptions made by source code.
+Tagged GitHub release jobs use `npm ci` and verify the committed Cargo lockfile before platform packaging. Android and iOS packages use their platform commands documented above. Final store signing, notarization, provisioning, screenshots, store metadata, and native-device acceptance are release-environment gates rather than assumptions made by source code.
 
 After collecting final release artifacts into one directory, generate and verify a SHA-256 manifest:
 
