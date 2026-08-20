@@ -43,8 +43,7 @@ export async function pickBrowserFile(accept: string): Promise<string | null> {
           finish(null);
           return;
         }
-        const token = storeFile(file);
-        finish(token);
+        finish(storeFile(file));
       },
       { once: true },
     );
@@ -70,14 +69,16 @@ export async function registerMobileSelection(uri: string): Promise<string> {
     throw new Error("This portable build accepts text files up to 64 MiB.");
   }
 
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
   const displayName = mobileDisplayName(uri);
-  const file = new File([bytes], displayName, { type: "text/plain" });
-  return storeFile(file);
+  return storeFile(new File([buffer], displayName, { type: "text/plain" }));
 }
 
 export function getBrowserFile(token: string): File {
   const file = files.get(token);
   if (!file) throw new Error("The selected portable file is no longer available.");
+  files.delete(token);
   return file;
 }
 
