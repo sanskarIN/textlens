@@ -3,6 +3,17 @@ const DOWNLOAD_TOKEN_PREFIX = "textlens-web-download://";
 const MOBILE_SAVE_TOKEN_PREFIX = "textlens-mobile-save://";
 const MAX_PORTABLE_FILE_BYTES = 64 * 1024 * 1024;
 
+interface GlobalFsMetadata {
+  isFile: boolean;
+  size: number;
+}
+
+interface GlobalFsApi {
+  stat(path: string): Promise<GlobalFsMetadata>;
+  readFile(path: string): Promise<Uint8Array>;
+  writeTextFile(path: string, contents: string): Promise<void>;
+}
+
 const files = new Map<string, File>();
 let counter = 0;
 
@@ -45,8 +56,8 @@ export async function pickBrowserFile(accept: string): Promise<string | null> {
 }
 
 export async function registerMobileSelection(uri: string): Promise<string> {
-  const { readFile, stat } = await import("@tauri-apps/plugin-fs");
-  const metadata = await stat(uri);
+  const fs = mobileFs();
+  const metadata = await fs.stat(uri);
   if (!metadata.isFile) {
     throw new Error("The selected mobile document is not a file.");
   }
@@ -54,7 +65,7 @@ export async function registerMobileSelection(uri: string): Promise<string> {
     throw new Error("This portable build accepts text files up to 64 MiB.");
   }
 
-  const bytes = await readFile(uri);
+  const bytes = await fs.readFile(uri);
   if (bytes.byteLength > MAX_PORTABLE_FILE_BYTES) {
     throw new Error("This portable build accepts text files up to 64 MiB.");
   }
@@ -86,8 +97,7 @@ export async function downloadBrowserText(
 ): Promise<void> {
   if (token.startsWith(MOBILE_SAVE_TOKEN_PREFIX)) {
     const uri = decodeURIComponent(token.slice(MOBILE_SAVE_TOKEN_PREFIX.length));
-    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-    await writeTextFile(uri, content);
+    await mobileFs().writeTextFile(uri, content);
     return;
   }
 
@@ -106,6 +116,17 @@ export async function downloadBrowserText(
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function mobileFs(): GlobalFsApi {
+  const tauriWindow = window as Window & {
+    __TAURI__?: { fs?: GlobalFsApi };
+  };
+  const fs = tauriWindow.__TAURI__?.fs;
+  if (!fs) {
+    throw new Error("The native mobile filesystem bridge is unavailable.");
+  }
+  return fs;
 }
 
 function storeFile(file: File): string {
