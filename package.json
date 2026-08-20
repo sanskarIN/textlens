@@ -18,6 +18,7 @@
     "dev:web": "vite --mode web",
     "build": "tsc --noEmit && vite build",
     "build:web": "tsc --noEmit && vite build --mode web",
+    "build:mobile": "tsc --noEmit && vite build --mode mobile",
     "preview:web": "vite preview --host 0.0.0.0",
     "check": "tsc --noEmit",
     "lint": "eslint src vite.config.ts eslint.config.js",
