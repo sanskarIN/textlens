@@ -12,6 +12,7 @@ TextLens may process:
 
 - typed or pasted text;
 - a local/sandboxed file you explicitly select;
+- a mobile document-provider URI only for the duration of an explicit open/save workflow;
 - local analysis settings;
 - reusable local analysis presets;
 - optional recent-file metadata you explicitly enable;
@@ -24,9 +25,9 @@ TextLens may process:
 
 On Windows, macOS, and Linux, pasted text crosses only the local Tauri IPC boundary to the bundled Rust backend for analysis.
 
-### Web/PWA and mobile portable runtime
+### Web/PWA and mobile portable analyzer
 
-On Web/PWA and the Android/iOS portable frontend, pasted text is analyzed directly in the local WebView/browser JavaScript runtime.
+On Web/PWA and Android/iOS, pasted text is analyzed directly in the local browser/WebView TypeScript runtime.
 
 Neither path intentionally transmits pasted text to an external analysis server.
 
@@ -34,11 +35,21 @@ Neither path intentionally transmits pasted text to an external analysis server.
 
 Files are accessed only after explicit selection.
 
+### Desktop
+
 Desktop builds use the Rust file layer. Compatible large desktop files can be processed incrementally rather than retained in full.
 
-Web/PWA and mobile portable builds use sandboxed platform/browser file objects and analyze selected files in memory with a 64 MiB source-file limit. This path does not require or retain an arbitrary desktop filesystem path.
+### Web/PWA
 
-Analysis results store at most the display filename and size, not the full source path.
+The browser provides a sandboxed `File` only after user selection. TextLens analyzes the selected file in memory with a 64 MiB source-file limit. Browser filesystem paths are neither available nor required.
+
+### Android and iOS/iPadOS
+
+The mobile shell uses Tauri's native document dialog. Android returns a `content://` URI and iOS/iPadOS returns a `file://` URI for the user-selected resource. TextLens uses the capability-restricted filesystem bridge only to stat/read that selected input or write an explicitly selected export destination.
+
+Before reading a mobile source, TextLens checks that the selected resource is a file and that its reported size is within the 64 MiB portable limit. The byte length is checked again after reading. The resulting bytes are converted into an in-memory file for portable analysis.
+
+The provider URI is not written into `AnalysisReport`, recent-file metadata, presets, settings backups, or exported reports. Analysis results store at most a sanitized display filename and size.
 
 ## Encoding
 
@@ -52,7 +63,7 @@ Theme, reading/speaking rates, result limits, keyword exclusions, recent-file-me
 
 Keyword exclusions are preferences only. They filter the keyword summary while core counts and n-grams continue to use the complete analyzed token stream.
 
-TextLens can export a versioned settings backup after explicit interaction. The backup contains preferences only; it does not contain analyzed text, document paths, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or external identifiers.
+TextLens can export a versioned settings backup after explicit interaction. The backup contains preferences only; it does not contain analyzed text, document paths/provider URIs, keyword results, analysis reports, recent-file entries, analysis presets, credentials, or external identifiers.
 
 Restored backups are size-limited and validated before use. Compatible older backups restore newer fields to defined defaults.
 
@@ -75,7 +86,7 @@ Analysis presets are optional local configurations. A preset can contain only:
 - top-keyword and top-n-gram limits;
 - keyword exclusions.
 
-Presets never contain analyzed text, source paths, recent-file entries, reports, encoding samples, credentials, theme choice, reduced-motion preference, or the recent-file-history opt-in.
+Presets never contain analyzed text, source paths/provider URIs, recent-file entries, reports, encoding samples, credentials, theme choice, reduced-motion preference, or the recent-file-history opt-in.
 
 Preset names/collections are bounded and parsed before use. Presets are device/browser-profile local and are not part of the current settings-backup schema.
 
@@ -87,7 +98,7 @@ Recent-file metadata is **off by default**. If enabled, TextLens stores at most 
 - analyzed file size;
 - opened timestamp.
 
-Full file paths, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Path-like display names are rejected before storage.
+Full file paths, mobile provider URIs, directory names, source text, keyword results, encoding samples, and report contents are not stored in this history. Path-like display names are rejected before storage.
 
 Recent-file controls allow per-entry removal and clear-all. Turning the feature off or restoring defaults deletes stored recent metadata when local persistence is available.
 
@@ -97,7 +108,7 @@ The history is informational and does not retain enough path/provider informatio
 
 Reports are created only after explicit export interaction. They contain aggregate metrics/frequencies, report schema version, encoding diagnostics when applicable, and at most display filename metadata.
 
-They intentionally omit the original source document content and full path.
+They intentionally omit the original source document content and full path/provider URI.
 
 JSON exports remain complete canonical TextLens analysis reports because JSON is used for validated import/comparison. Markdown exports can omit source metadata, core metrics, keywords, bigrams, trigrams, or whitespace diagnostics.
 
@@ -120,7 +131,7 @@ The Web/PWA build can register `public/sw.js` so the application shell can relau
 The service worker is intended to cache:
 
 - the application root/shell;
-- the manifest/logo;
+- the manifest/logo and install icons;
 - same-origin JavaScript/CSS/static application assets.
 
 It is not passed analyzed document contents by the analyzer and does not intentionally cache imported source files, report contents, settings backups, or generated exports.
@@ -129,11 +140,11 @@ A hosted PWA necessarily downloads its static application files from the host. A
 
 ## Mobile platform storage and sharing
 
-Android and iOS/iPadOS builds use the portable local runtime for document workflows rather than treating mobile document-provider values as ordinary desktop paths.
+Android and iOS/iPadOS use native platform document providers rather than treating provider URIs as ordinary desktop paths. Tauri capabilities are limited to the core/dialog/opener APIs plus filesystem stat/read/write commands required by user-selected document workflows.
 
-The user remains responsible for the destination/provider chosen when exporting or sharing a generated local file. Once a file is handed to an operating-system share/save provider or another application, that provider/application's privacy behavior applies.
+The user remains responsible for the destination/provider chosen when exporting a generated local file. Once an exported file is handed to an operating-system provider or another application, that provider/application's privacy behavior applies.
 
-TextLens does not attach analyzed source text to the external Releases, GitHub, or funding URLs.
+TextLens does not attach analyzed source text or provider URIs to the external Releases, GitHub, or funding URLs.
 
 ## Quick actions
 
@@ -155,7 +166,7 @@ A Web/PWA deployment uses network access to fetch its static application assets 
 
 ## Logging
 
-Production code must never log raw analyzed text, full private document paths, imported report contents, credentials, authentication data, or other sensitive content.
+Production code must never log raw analyzed text, full private document paths, mobile provider URIs, imported report contents, credentials, authentication data, or other sensitive content.
 
 Native analysis logging is limited to operation/aggregate diagnostics and must not include private source content. Portable analysis does not add a remote telemetry endpoint.
 
