@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeDevCommand": "npm run dev:mobile",
+    "beforeBuildCommand": "npm run build:mobile"
+  },
+  "bundle": {
+    "shortDescription": "Private text analysis on Android",
+    "longDescription": "TextLens analyzes text locally on Android with a touch-friendly interface and portable file import/export workflows."
+  }
+}
