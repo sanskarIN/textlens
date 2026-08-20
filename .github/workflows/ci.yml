@@ -25,6 +25,8 @@ jobs:
       - run: npm run docs:check
       - run: npm run test
       - run: npm run build
+      - run: npm run build:web
+      - run: npm run build:mobile
 
   rust:
     name: Rust quality
