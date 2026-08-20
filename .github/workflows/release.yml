@@ -17,6 +17,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
 
       - name: Verify release tag
         run: npm run release:tag-check
@@ -24,11 +25,11 @@ jobs:
       - name: Verify version metadata and release documentation
         run: npm run version:check
 
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run build:web
 
       - name: Upload Web/PWA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: textlens-${{ github.ref_name }}-web-pwa
           path: dist/
@@ -54,6 +55,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
 
       - name: Verify release tag
         run: npm run release:tag-check
@@ -63,13 +65,17 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify committed Cargo lockfile
+        working-directory: src-tauri
+        run: cargo fetch --locked
+
       - name: Install Linux prerequisites
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
 
       - uses: tauri-apps/tauri-action@v1
         env:
