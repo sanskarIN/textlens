@@ -4,6 +4,16 @@ TextLens testing separates **source-level portability** from **platform release 
 
 See [platforms.md](platforms.md) for the platform support model.
 
+## Deterministic dependency baseline
+
+Clean test environments should install the exact committed npm dependency graph before running frontend checks:
+
+```bash
+npm ci
+```
+
+Rust validation uses the committed `src-tauri/Cargo.lock` through Cargo's `--locked` flag. If either manifest and its lockfile disagree, deterministic validation must fail rather than silently resolving a different dependency graph.
+
 ## TypeScript and portable-runtime tests
 
 ```bash
@@ -22,9 +32,9 @@ Frontend coverage includes:
 - Markdown export-option parsing;
 - Quick actions filtering;
 - recent-file metadata validation and bounds;
-- portable Web/mobile analysis for core counts, vocabulary metrics, keyword exclusions, n-grams, Unicode graphemes, and mixed line endings.
+- portable Web/mobile analysis for core counts, vocabulary metrics, keyword exclusions, n-grams, Unicode graphemes, mixed line endings, encoding-error behavior, and native-report import invariants.
 
-`src/platform/web-analyzer.test.ts` is the initial parity guard for the second local analysis implementation. New portable analyzer behavior should be tested against the same observable report contract used by the Rust analyzer.
+`src/platform/web-analyzer.test.ts` guards the observable counting contract for the second local analysis implementation. `src/platform/web-tauri-core-guard.test.ts` covers native/import parity and portable file-decoding behavior. New portable analyzer behavior should be tested against the same observable report contract used by the Rust analyzer.
 
 ## Frontend build matrix
 
@@ -49,7 +59,7 @@ A change that passes the desktop build but breaks either portable build is not c
 
 ```bash
 cd src-tauri
-cargo test --lib
+cargo test --locked --lib
 ```
 
 Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 handling, privacy-safe report rendering, configurable Markdown rendering, canonical JSON behavior, report import validation, atomic replacement, and settings backup validation/round trips.
@@ -62,7 +72,7 @@ Deterministic decoding fixtures cover malformed UTF-8, undefined Windows-1252 by
 
 ```bash
 cd src-tauri
-cargo test --all-targets
+cargo test --locked --all-targets
 ```
 
 Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the native analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
@@ -74,6 +84,7 @@ Fixtures under `src-tauri/tests/fixtures/` must remain synthetic and must never 
 ## Static checks
 
 ```bash
+npm ci
 npm run version:check
 npm run check
 npm run lint
@@ -86,15 +97,15 @@ npm run build:mobile
 
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
 `npm run version:check` verifies npm, Cargo, Tauri, README, changelog, and version-specific release-note identity for application version 2.0.12.
 
 Application version and report-schema version are independent. Cross-platform work must continue to emit report schema v2 unless an explicit compatibility migration is made.
 
-CI runs dependency-free identity checks before dependency installation and then exercises all three frontend bundles.
+CI performs identity checks, installs the exact npm graph with `npm ci`, exercises all three frontend bundles, and validates Rust against the committed Cargo lockfile. Security auditing also validates the committed Cargo lockfile rather than generating a fresh dependency resolution.
 
 Do not mark a command passing merely because source was inspected. Record actual CI/local evidence separately from source changes.
 
@@ -113,6 +124,7 @@ Web/mobile acceptance must include boundary behavior:
 - UTF-16 BE BOM;
 - valid UTF-8 without BOM;
 - non-UTF-8 fallback labelled Windows-1252;
+- malformed bytes recorded consistently with the native decoding contract;
 - no source path embedded in a generated report.
 
 ## PWA acceptance
@@ -120,13 +132,14 @@ Web/mobile acceptance must include boundary behavior:
 After `npm run build:web`, deploy or serve the output in a service-worker-capable environment and verify:
 
 1. the manifest loads without errors;
-2. the service worker installs;
+2. the service worker installs with the intended application-relative scope;
 3. the application loads normally online;
 4. after the application shell has been cached, a relaunch can load without network access;
 5. analyzed source text does not appear in Cache Storage entries;
 6. imported documents and generated reports are not intentionally added to the service-worker cache;
 7. an updated application build can replace the old TextLens PWA cache;
-8. file selection and export still work after installation as a standalone PWA.
+8. file selection and export still work after installation as a standalone PWA;
+9. root-hosted and configured subdirectory-hosted deployments resolve manifest/icons/chunks/service-worker paths correctly.
 
 ChromeOS acceptance uses this same PWA path.
 
@@ -211,7 +224,7 @@ Native desktop benchmark:
 
 ```bash
 cd src-tauri
-cargo run --release --example benchmark -- 16 5
+cargo run --locked --release --example benchmark -- 16 5
 ```
 
 Record machine, OS, and toolchain information when comparing results.
