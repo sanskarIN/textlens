@@ -1,9 +1,9 @@
 # Cross-platform support
 
-TextLens 2.0.12 is structured around one shared TypeScript user interface and two local execution paths:
+TextLens 2.0.12 is structured around one shared TypeScript user interface and two local analysis paths:
 
 1. **Native desktop runtime** — Tauri IPC calls the Rust analysis, file, report, and settings-backup code.
-2. **Portable runtime** — Web/PWA and the Android/iOS frontend use browser-safe local APIs and a TypeScript analysis implementation that emits the same TextLens report schema.
+2. **Portable analysis runtime** — Web/PWA and Android/iOS use a TypeScript analysis implementation that emits the same TextLens report schema. Web uses browser file APIs; Android/iOS use native Tauri dialogs and filesystem access for user-selected document-provider URIs.
 
 No runtime uploads document contents to a TextLens service. Platform packaging and store distribution are separate release activities from source support.
 
@@ -14,24 +14,26 @@ No runtime uploads document contents to a TextLens service. Platform packaging a
 | Windows 10/11 | Tauri + Rust | `npm run tauri:dev` / `npm run tauri:build` | Native dialog + Rust file layer | Supported |
 | macOS | Tauri + Rust | `npm run tauri:dev` / `npm run tauri:build` | Native dialog + Rust file layer | Supported |
 | Linux desktop | Tauri + Rust | `npm run tauri:dev` / `npm run tauri:build` | Native dialog + Rust file layer | Supported |
-| Android | Tauri mobile shell + portable frontend | `npm run tauri:android:dev` / `npm run tauri:android:build` | Sandboxed document picker + local in-memory analysis | Source supported; device packaging requires Android toolchain |
-| iPhone / iPad | Tauri mobile shell + portable frontend | `npm run tauri:ios:dev` / `npm run tauri:ios:build` | Sandboxed document picker + local in-memory analysis | Source supported; device packaging requires macOS/Xcode |
+| Android | Tauri mobile + portable analyzer | `npm run tauri:android:dev` / `npm run tauri:android:build` | Native dialog + `content://` URI + scoped filesystem bridge | Source supported; device packaging requires Android toolchain |
+| iPhone / iPad | Tauri mobile + portable analyzer | `npm run tauri:ios:dev` / `npm run tauri:ios:build` | Native dialog + `file://` URI + scoped filesystem bridge | Source supported; device packaging requires macOS/Xcode |
 | Web | Browser | `npm run dev:web` / `npm run build:web` | Browser file picker + local download | Supported |
 | PWA | Browser / installed web app | `npm run build:web` | Same as Web; service-worker app shell | Supported |
 | ChromeOS | PWA or compatible browser | `npm run build:web` | Browser file picker + local download | Supported through Web/PWA |
 
-## Why there are two local runtimes
+## Why there are two local analysis paths
 
-Desktop platforms can safely pass ordinary filesystem paths to the Rust backend. Browser environments cannot access arbitrary filesystem paths, and mobile document providers may expose sandboxed provider handles instead of a normal desktop path.
+Desktop platforms can safely pass ordinary filesystem paths to the Rust backend. Browser environments cannot access arbitrary filesystem paths, and mobile document providers expose platform URIs rather than ordinary desktop paths.
 
 TextLens therefore avoids pretending that every platform has the same filesystem semantics:
 
 - desktop keeps the mature Rust streaming/file-decoding path;
 - Web/PWA uses browser `File`, `Blob`, `TextDecoder`, and download APIs;
-- Android/iOS package the portable frontend inside the Tauri mobile shell so document-provider values are not treated as ordinary desktop paths;
+- Android uses Tauri's native dialog to receive a `content://` URI, then the scoped filesystem plugin reads that selected document locally;
+- iOS/iPadOS uses the native dialog to receive a `file://` URI, then the same scoped filesystem bridge reads/writes the selected resource;
+- mobile selected bytes are converted to an in-memory `File` before entering the portable analyzer, so the report-validation/export pipeline stays shared;
 - both analysis implementations emit report schema v2 and preserve the same privacy boundary: source text is not written into exported reports.
 
-This split prevents platform-specific filesystem assumptions from leaking into the core UI.
+This split prevents platform-specific filesystem assumptions from leaking into the analysis/UI contract.
 
 ## Shared feature contract
 
@@ -62,15 +64,22 @@ Desktop builds use the Rust backend for local file analysis. Large UTF-8/Windows
 
 ### Web and PWA
 
-The web build replaces only the Tauri-facing modules at bundle time. The application UI continues to import the same logical `invoke`, dialog, opener, and version functions, while Vite aliases those imports to browser-safe implementations in `src/platform/`.
+The web build replaces the Tauri-facing modules at bundle time with browser-safe implementations in `src/platform/`. Browser file analysis enforces a **64 MiB** source-file limit because the selected file is analyzed in memory. Report imports remain bounded to **512 KiB** and settings backups to **64 KiB**.
 
-Browser file analysis currently enforces a **64 MiB** source-file limit because the browser runtime analyzes the selected file in memory. Report imports remain bounded to **512 KiB** and settings backups to **64 KiB**.
-
-The PWA service worker caches the application shell and same-origin build assets. It does not cache analyzed document contents or exported reports.
+The PWA service worker caches the application shell and same-origin build assets. It does not cache analyzed document contents or exported reports. Raster 192×192 and 512×512 PWA icons plus a 180×180 Apple touch icon are included alongside the SVG application mark.
 
 ### Android and iOS/iPadOS
 
-Tauri mobile builds use `--mode mobile`, which selects the same portable frontend adapters but does not register the PWA service worker. This avoids relying on desktop path semantics for mobile document providers.
+Tauri mobile builds use `--mode mobile`, which selects the portable analyzer but keeps user-selected file I/O native:
+
+1. the Tauri dialog plugin opens the platform document picker;
+2. Android returns a content URI and iOS returns a file URI;
+3. the Tauri filesystem plugin checks metadata and reads the selected resource through a tightly scoped capability;
+4. TextLens rejects source files above **64 MiB** before portable analysis;
+5. exported reports/settings are written through the native save destination selected by the user;
+6. the PWA service worker is not registered inside the Tauri mobile shell.
+
+`app.withGlobalTauri` is enabled only in the Android/iOS override configs so the aliased portable adapters can call the already capability-restricted native dialog/filesystem/opener APIs without routing document-provider URIs into desktop `std::fs` commands.
 
 The mobile source tree is initialized/generated by the Tauri CLI on the development machine. Generated Android Studio and Xcode project state should be treated as build output/tooling state rather than hand-maintained application logic unless a platform-specific native customization is deliberately required.
 
@@ -111,7 +120,7 @@ A complete Android development machine needs the Tauri prerequisites plus the An
 - Android Studio and Android SDK tooling;
 - an emulator or physical device for runtime acceptance testing.
 
-Initialize once on a development checkout when the generated mobile project is not present:
+Initialize once on a development checkout when the generated Android project is not present:
 
 ```bash
 npm run tauri:android:init
@@ -135,7 +144,7 @@ iOS development and packaging require a macOS host with the Apple toolchain in a
 - an iOS Simulator or physical device;
 - Apple signing/provisioning configuration when producing distributable builds.
 
-Initialize once on a development checkout when the generated mobile project is not present:
+Initialize once on a development checkout when the generated iOS project is not present:
 
 ```bash
 npm run tauri:ios:init
@@ -157,6 +166,7 @@ Serve the contents of `dist/` from HTTPS in production. The host should:
 - serve `index.html` for the application root;
 - serve JavaScript/CSS with correct MIME types;
 - allow `manifest.webmanifest` and `sw.js` at the application root;
+- serve the raster and SVG app icons without rewriting them to HTML;
 - avoid rewriting `sw.js` to HTML;
 - use a cache policy that permits the service worker to discover updated application assets.
 
@@ -169,11 +179,11 @@ Tauri capabilities are split by platform:
 - `src-tauri/capabilities/default.json` is limited to Linux, macOS, and Windows;
 - `src-tauri/capabilities/mobile.json` is limited to iOS and Android.
 
-Both stay intentionally small. TextLens does not grant broad shell, process, filesystem, or network permissions merely to claim cross-platform support.
+The mobile capability grants only core defaults, native dialog/opener access, and the filesystem commands required to stat/read/write a user-selected document. TextLens does not grant broad shell, process, unrestricted filesystem, or network permissions merely to claim cross-platform support.
 
 ## Cross-platform verification
 
-The normal frontend CI now checks all three frontend bundles:
+The normal frontend CI checks all three frontend bundles:
 
 ```bash
 npm run check
@@ -192,7 +202,7 @@ Before publishing a platform artifact, also perform platform-native acceptance t
 
 - startup and navigation;
 - paste analysis;
-- document import;
+- native/mobile/browser document import as applicable;
 - JSON and Markdown export;
 - report comparison;
 - settings backup/restore;
