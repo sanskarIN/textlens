@@ -1,3 +1,5 @@
+import packageMetadata from "../../package.json";
+
 export async function getVersion(): Promise<string> {
-  return "2.0.12";
+  return packageMetadata.version;
 }
