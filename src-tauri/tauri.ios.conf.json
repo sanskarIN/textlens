@@ -4,8 +4,11 @@
     "beforeDevCommand": "npm run dev:mobile",
     "beforeBuildCommand": "npm run build:mobile"
   },
+  "app": {
+    "withGlobalTauri": true
+  },
   "bundle": {
     "shortDescription": "Private text analysis on iPhone and iPad",
-    "longDescription": "TextLens analyzes text locally on iPhone and iPad with a touch-friendly interface and portable file import/export workflows."
+    "longDescription": "TextLens analyzes text locally on iPhone and iPad with native document-provider open/save workflows and a touch-friendly interface."
   }
 }
