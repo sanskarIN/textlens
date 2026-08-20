@@ -11,26 +11,26 @@ See [platforms.md](platforms.md) and [ADR-0012](adr/0012-portable-cross-platform
 ## Runtime overview
 
 ```text
-                              Shared TypeScript/Vite UI
-                                        │
-                   ┌────────────────────┴────────────────────┐
-                   │                                         │
-           Native desktop mode                       Portable mode
-        Windows / macOS / Linux                Web / PWA / Android / iOS
-                   │                                         │
-         real Tauri JS modules                      Vite module aliases
-                   │                                         │
-               Tauri IPC                              browser-safe APIs
-                   │                                         │
-        Rust backend implementation                 src/platform/*
+                         Shared TypeScript / Vite UI
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+       Windows/macOS/Linux       Web/PWA          Android / iOS
+              │                    │                    │
+       real Tauri modules      web adapters        Tauri mobile shell
+              │                    │                    │
+          Tauri IPC          File / Blob APIs      dialog + fs URI bridge
+              │                    │                    │
+        Rust backend         portable analyzer     portable analyzer
 ```
 
-The UI imports one logical set of operations. Vite decides which implementation is bundled:
+The UI keeps one logical workflow while build mode selects the platform boundary:
 
-- normal desktop builds use the real `@tauri-apps/*` modules;
-- `web` and `mobile` modes alias the Tauri-facing modules to `src/platform/` adapters.
+- normal desktop builds use the real `@tauri-apps/*` modules and Rust IPC commands;
+- `web` mode aliases Tauri-facing calls to browser-safe adapters under `src/platform/`;
+- `mobile` mode uses the portable analyzer for report generation while the Tauri mobile shell exposes capability-restricted global dialog/filesystem/opener/app APIs for native document-provider I/O and metadata.
 
-This keeps platform selection at build time instead of scattering runtime platform checks throughout the UI.
+This keeps platform selection explicit instead of scattering user-agent checks throughout the application.
 
 ## Native desktop layers
 
@@ -52,7 +52,7 @@ The domain does not depend on Tauri windows, dialogs, or filesystem paths.
 
 ### Tauri application boundary
 
-`commands.rs` exposes only operations required by the UI:
+`commands.rs` exposes only operations required by the desktop UI:
 
 - `analyze_text`
 - `analyze_file`
@@ -63,15 +63,11 @@ The domain does not depend on Tauri windows, dialogs, or filesystem paths.
 
 Potentially blocking desktop filesystem work runs through Tauri's blocking runtime.
 
-`src-tauri/src/lib.rs` is already mobile-entry compatible, but Android/iOS frontend bundles deliberately use portable file semantics rather than passing mobile document-provider values into desktop-oriented `std::fs` workflows.
+`src-tauri/src/lib.rs` is also the mobile entry point and initializes dialog, filesystem, and opener plugins. Android/iOS frontend bundles deliberately do not pass document-provider URIs into the desktop-oriented `std::fs` commands.
 
-## Portable Web/mobile runtime
+## Portable analysis runtime
 
-`src/platform/` contains the browser-safe implementation used by `web` and `mobile` Vite modes.
-
-### `web-analyzer.ts`
-
-Implements the portable analysis contract locally in TypeScript:
+`src/platform/web-analyzer.ts` implements the portable analysis contract locally in TypeScript for Web/PWA and mobile:
 
 - words and unique words;
 - longest-word characters;
@@ -87,27 +83,39 @@ It emits report schema v2 so the shared presentation/comparison code receives th
 
 ### `web-tauri-core.ts`
 
-Provides the portable equivalent of the Tauri command calls used by the UI. It owns:
+Provides the portable equivalent of the TextLens command calls used by Web/PWA and mobile. It owns:
 
 - pasted-text analysis;
-- browser/mobile file analysis;
+- in-memory selected-file analysis;
 - report import/export;
 - settings backup/restore;
-- portable input bounds and basic compatibility validation.
+- portable input bounds and compatibility validation.
 
 Portable source files are bounded to 64 MiB and analyzed in memory. Report imports stay bounded to 512 KiB and settings backups to 64 KiB.
 
-### `web-dialog.ts` and `web-file-store.ts`
+### Web file boundary
 
-Translate the application's open/save workflow into sandboxed browser file selection and local download tokens. The original source path is never required or retained.
+`web-dialog.ts` and `web-file-store.ts` use the browser file picker and local Blob/download APIs in `web` mode. A browser-selected `File` is registered under an opaque session token; full filesystem paths are neither available nor required.
 
-### `web-opener.ts`
+### Mobile file boundary
 
-Provides explicit user-initiated external navigation with a small protocol allowlist.
+In `mobile` mode, the same adapter modules switch to capability-restricted global Tauri APIs exposed only by the Android/iOS config overrides:
 
-### `web-app.ts`
+1. `window.__TAURI__.dialog` opens the native platform document picker;
+2. Android yields a `content://` URI while iOS/iPadOS yields a `file://` URI;
+3. `window.__TAURI__.fs.stat` validates the selected resource and its size;
+4. `window.__TAURI__.fs.readFile` reads only that user-selected resource;
+5. the bytes are wrapped in an in-memory `File` and passed to the portable analyzer;
+6. native save-dialog destinations are represented by opaque mobile save tokens;
+7. `window.__TAURI__.fs.writeTextFile` writes the validated generated report/settings content to the selected destination.
 
-Returns the application version from `package.json` so the browser/mobile About UI does not depend on packaged Tauri metadata and does not introduce a second copied version literal.
+The provider URI is not included in `AnalysisReport` and is not persisted as recent-file metadata.
+
+### External links and version metadata
+
+`web-opener.ts` applies an HTTP/HTTPS/mailto protocol allowlist. Web uses browser navigation; mobile uses the native Tauri opener exposed through the scoped global bridge.
+
+`web-app.ts` uses packaged native app metadata in mobile mode and falls back to synchronized `package.json` metadata for Web/PWA.
 
 ## Frontend startup boundary
 
@@ -119,7 +127,7 @@ It:
 - installs a process-local memory fallback when persistent storage is unusable;
 - loads the shared main UI;
 - loads mobile/safe-area CSS;
-- mounts optional preset, version, and manual-update modules;
+- mounts preset, version, and manual-update modules;
 - registers the service worker only in `web` mode;
 - catches initialization failures and renders a local recovery state.
 
@@ -155,13 +163,26 @@ Selected local file ──┘        │
                                └─> Rust file adapter / streaming decoder
 ```
 
-### Web/PWA/mobile portable mode
+### Web/PWA
 
 ```text
 Typed/pasted text ─────┐
-                      ├─> portable invoke adapter ─> TS analyzer ─> report DTO ─> UI
-Selected sandbox file ─┘             │
-                                     └─> TextDecoder + in-memory file adapter
+                      ├─> portable invoke ─> TS analyzer ─> report DTO ─> UI
+Browser File ─────────┘          │
+                                 └─> TextDecoder + in-memory file adapter
+```
+
+### Android/iOS
+
+```text
+Native document picker ─> provider URI ─> scoped Tauri fs stat/read
+                                            │
+                                            ▼
+                                      in-memory File
+                                            │
+Typed/pasted text ──────────────────────────┼─> portable analyzer ─> report DTO
+                                            │
+Native save picker <─ scoped Tauri fs write┘
 ```
 
 ### Shared report/settings flow
@@ -188,7 +209,7 @@ Cross-platform work must not introduce a platform-specific report schema.
 
 Raw source text is intentionally absent from `AnalysisReport`.
 
-Desktop file analysis returns display filename/size without exposing the full path in the report. Portable file analysis uses sandboxed file objects and also returns display filename/size only.
+Desktop file analysis returns display filename/size without exposing the full path. Web file analysis uses sandboxed file objects. Mobile reads only the explicitly selected provider URI, converts it to an in-memory file, and exposes only a sanitized display filename/size to the report layer. Full paths/provider URIs are not exported.
 
 Report comparison loads aggregate report data. Settings backups contain preferences only. Presets contain analysis configuration only. Recent-file metadata is opt-in, path-free, bounded, and clearable.
 
@@ -202,7 +223,7 @@ The PWA service worker caches the application shell and same-origin application 
 
 The native Rust path retains the conservative encoding policy documented in ADR-0003.
 
-The portable adapter mirrors the deterministic high-level policy available through Web APIs:
+The portable adapter mirrors the deterministic high-level policy available through standard decoding APIs:
 
 1. UTF-8 BOM;
 2. UTF-16 LE/BE BOM;
@@ -215,15 +236,15 @@ Platform support does not justify adding statistical encoding guesses or cloud d
 
 Desktop files above the configured threshold can use the Rust line-oriented streaming path when UTF-8 or Windows-1252 is selected. UTF-16 uses full-file decoding for correctness.
 
-Portable Web/mobile analysis is currently in-memory and has an explicit 64 MiB selected-file bound. This difference is documented rather than hidden behind a misleading claim of identical filesystem behavior.
+Portable Web/mobile analysis is in-memory and has an explicit 64 MiB selected-file bound. On mobile, metadata is checked before reading the selected provider resource and the byte length is checked again after reading. This difference is documented rather than hidden behind a misleading claim of identical filesystem behavior.
 
 ## PWA architecture
 
-`public/manifest.webmanifest` describes installability. `public/sw.js` provides an application-shell offline cache.
+`public/manifest.webmanifest` describes installability. `public/sw.js` provides an application-shell offline cache. Raster 192×192 and 512×512 icons plus a 180×180 Apple touch icon complement the source SVG.
 
 The service worker:
 
-- caches root application assets;
+- caches root application assets and install icons;
 - discovers same-origin built CSS/JS assets from the generated root document;
 - uses network-first navigation with cached-root fallback;
 - runtime-caches same-origin static assets;
@@ -234,10 +255,10 @@ It does not implement document synchronization or a content database.
 ## Tauri platform configuration
 
 - `tauri.conf.json` contains shared application identity and desktop defaults.
-- `tauri.android.conf.json` selects `npm run dev:mobile` / `npm run build:mobile`.
-- `tauri.ios.conf.json` selects the same portable mobile frontend mode.
+- `tauri.android.conf.json` selects `npm run dev:mobile` / `npm run build:mobile` and enables the scoped global Tauri bridge.
+- `tauri.ios.conf.json` selects the same portable mobile frontend mode and global bridge.
 - `capabilities/default.json` is scoped to Linux/macOS/Windows.
-- `capabilities/mobile.json` is scoped to Android/iOS.
+- `capabilities/mobile.json` is scoped to Android/iOS and grants only core/dialog/opener plus filesystem stat/read/write commands needed for user-selected documents.
 
 ## Testing boundary
 
@@ -263,6 +284,7 @@ Rust formatting, clippy, and tests run separately. Native mobile signing/device 
 - Keep report schema consistent across runtimes.
 - Preserve explicit input bounds.
 - Do not broaden Tauri capabilities simply to make a platform feature easier.
+- Treat mobile provider URIs as opaque platform resources rather than desktop filesystem paths.
 - New persistence requires a privacy review and bounded clear/delete behavior.
 - New portable analysis behavior must have regression coverage and should match the Rust contract where the underlying platform APIs permit it.
 - Application version changes must pass `npm run version:check`.
