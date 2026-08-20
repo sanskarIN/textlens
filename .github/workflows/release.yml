@@ -9,7 +9,33 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  web:
+    name: Build Web/PWA
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify release tag
+        run: npm run release:tag-check
+
+      - name: Verify version metadata and release documentation
+        run: npm run version:check
+
+      - run: npm install --no-audit --no-fund
+      - run: npm run build:web
+
+      - name: Upload Web/PWA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: textlens-${{ github.ref_name }}-web-pwa
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  desktop:
     name: Build ${{ matrix.platform }}
     strategy:
       fail-fast: false
