@@ -56,3 +56,28 @@ jobs:
       - name: Test
         working-directory: src-tauri
         run: cargo test --all-targets
+
+  lockfiles:
+    name: Generate reproducibility lockfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Generate Cargo lockfile
+        working-directory: src-tauri
+        run: cargo generate-lockfile
+      - name: Upload generated lockfiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: textlens-reproducibility-lockfiles
+          path: |
+            package-lock.json
+            src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
