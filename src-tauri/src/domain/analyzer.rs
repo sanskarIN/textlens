@@ -192,7 +192,7 @@ impl AnalysisAccumulator {
 
     fn scan_paragraphs(&mut self, chunk: &str) {
         for line in logical_lines(chunk) {
-            let content = line.trim_end_matches(|c| c == '\r' || c == '\n');
+            let content = line.trim_end_matches(['\r', '\n']);
             if content.trim().is_empty() {
                 self.paragraph_open = false;
                 self.whitespace.blank_lines = self.whitespace.blank_lines.saturating_add(1);
@@ -276,7 +276,7 @@ fn rank(map: HashMap<String, usize>, denominator: usize, limit: usize) -> Vec<Fr
 
 fn dominant(d: &LineEndingDiagnostics) -> String {
     let mut vals = [("LF", d.lf), ("CRLF", d.crlf), ("CR", d.cr)];
-    vals.sort_by(|a, b| b.1.cmp(&a.1));
+    vals.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     if vals[0].1 == 0 {
         "None".into()
     } else {
