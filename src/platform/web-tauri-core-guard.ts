@@ -5,9 +5,12 @@ import { invoke as portableInvoke } from "./web-tauri-core";
 const MAX_FREQUENCY_ITEMS = 50;
 const MAX_TEXT_FILE_BYTES = 64 * 1024 * 1024;
 const DETECTION_SAMPLE_BYTES = 32 * 1024;
+const WINDOWS_1252_CHUNK_BYTES = 8 * 1024;
+const REPLACEMENT_CHARACTER = 0xfffd;
 const UTF8_BOM = [0xef, 0xbb, 0xbf] as const;
 const UTF16_LE_BOM = [0xff, 0xfe] as const;
 const UTF16_BE_BOM = [0xfe, 0xff] as const;
+const WINDOWS_1252_CODE_POINTS = createWindows1252CodePoints();
 
 type PortableEncoding = "utf8" | "utf16le" | "utf16be" | "windows1252";
 
@@ -159,86 +162,69 @@ function decodeUtf16(
 
 function decodeWindows1252(bytes: Uint8Array): { text: string; hadErrors: boolean } {
   let hadErrors = false;
-  const output = new Array<string>(bytes.byteLength);
+  const chunks: string[] = [];
 
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    const character = windows1252Character(bytes[index]);
-    if (character === null) {
-      output[index] = "\uFFFD";
-      hadErrors = true;
-    } else {
-      output[index] = character;
+  for (let offset = 0; offset < bytes.byteLength; offset += WINDOWS_1252_CHUNK_BYTES) {
+    const end = Math.min(offset + WINDOWS_1252_CHUNK_BYTES, bytes.byteLength);
+    const codeUnits = new Uint16Array(end - offset);
+
+    for (let index = offset; index < end; index += 1) {
+      const codePoint = WINDOWS_1252_CODE_POINTS[bytes[index]];
+      codeUnits[index - offset] = codePoint;
+      hadErrors ||= codePoint === REPLACEMENT_CHARACTER;
     }
+
+    chunks.push(String.fromCharCode(...codeUnits));
   }
 
-  return { text: output.join(""), hadErrors };
+  return { text: chunks.join(""), hadErrors };
 }
 
-function windows1252Character(byte: number): string | null {
-  switch (byte) {
-    case 0x80:
-      return "€";
-    case 0x81:
-    case 0x8d:
-    case 0x8f:
-    case 0x90:
-    case 0x9d:
-      return null;
-    case 0x82:
-      return "‚";
-    case 0x83:
-      return "ƒ";
-    case 0x84:
-      return "„";
-    case 0x85:
-      return "…";
-    case 0x86:
-      return "†";
-    case 0x87:
-      return "‡";
-    case 0x88:
-      return "ˆ";
-    case 0x89:
-      return "‰";
-    case 0x8a:
-      return "Š";
-    case 0x8b:
-      return "‹";
-    case 0x8c:
-      return "Œ";
-    case 0x8e:
-      return "Ž";
-    case 0x91:
-      return "‘";
-    case 0x92:
-      return "’";
-    case 0x93:
-      return "“";
-    case 0x94:
-      return "”";
-    case 0x95:
-      return "•";
-    case 0x96:
-      return "–";
-    case 0x97:
-      return "—";
-    case 0x98:
-      return "˜";
-    case 0x99:
-      return "™";
-    case 0x9a:
-      return "š";
-    case 0x9b:
-      return "›";
-    case 0x9c:
-      return "œ";
-    case 0x9e:
-      return "ž";
-    case 0x9f:
-      return "Ÿ";
-    default:
-      return String.fromCodePoint(byte);
+function createWindows1252CodePoints(): Uint16Array {
+  const codePoints = new Uint16Array(256);
+  for (let byte = 0; byte < codePoints.length; byte += 1) {
+    codePoints[byte] = byte;
   }
+
+  const overrides: Array<[number, number]> = [
+    [0x80, 0x20ac],
+    [0x81, REPLACEMENT_CHARACTER],
+    [0x82, 0x201a],
+    [0x83, 0x0192],
+    [0x84, 0x201e],
+    [0x85, 0x2026],
+    [0x86, 0x2020],
+    [0x87, 0x2021],
+    [0x88, 0x02c6],
+    [0x89, 0x2030],
+    [0x8a, 0x0160],
+    [0x8b, 0x2039],
+    [0x8c, 0x0152],
+    [0x8d, REPLACEMENT_CHARACTER],
+    [0x8e, 0x017d],
+    [0x8f, REPLACEMENT_CHARACTER],
+    [0x90, REPLACEMENT_CHARACTER],
+    [0x91, 0x2018],
+    [0x92, 0x2019],
+    [0x93, 0x201c],
+    [0x94, 0x201d],
+    [0x95, 0x2022],
+    [0x96, 0x2013],
+    [0x97, 0x2014],
+    [0x98, 0x02dc],
+    [0x99, 0x2122],
+    [0x9a, 0x0161],
+    [0x9b, 0x203a],
+    [0x9c, 0x0153],
+    [0x9d, REPLACEMENT_CHARACTER],
+    [0x9e, 0x017e],
+    [0x9f, 0x0178],
+  ];
+
+  for (const [byte, codePoint] of overrides) {
+    codePoints[byte] = codePoint;
+  }
+  return codePoints;
 }
 
 function startsWith(bytes: Uint8Array, prefix: readonly number[]): boolean {
