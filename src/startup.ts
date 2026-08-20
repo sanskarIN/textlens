@@ -7,6 +7,7 @@ async function start(): Promise<void> {
 
   try {
     await import("./main");
+    await import("./platform.css");
     await Promise.all([
       import("./presets-ui"),
       import("./app-version-ui"),
@@ -17,8 +18,19 @@ async function start(): Promise<void> {
       const status = document.getElementById("analysisStatus");
       if (status) status.textContent = en.storageSessionOnly;
     }
+
+    void registerWebServiceWorker();
   } catch {
     renderStartupFailure();
+  }
+}
+
+async function registerWebServiceWorker(): Promise<void> {
+  if (import.meta.env.MODE !== "web" || !("serviceWorker" in navigator)) return;
+  try {
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  } catch {
+    // PWA installation/offline caching is an enhancement; analysis must still start if registration is blocked.
   }
 }
 
