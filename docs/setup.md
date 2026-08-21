@@ -69,6 +69,7 @@ npm run tauri:dev
 Run the frontend, documentation, and Rust quality gates before opening a pull request:
 
 ```bash
+npm run version:check
 npm run check
 npm run lint
 npm run format:check
@@ -83,6 +84,14 @@ cargo test --all-targets
 ```
 
 `npm run docs:check` verifies repository-local Markdown link and image targets without making network requests.
+
+After the native prerequisites for the current host are installed, run the same no-bundle desktop smoke command used by the cross-platform CI matrix:
+
+```bash
+npm run native:smoke
+```
+
+This performs a Tauri debug build without creating distributable installers. Passing it confirms that the frontend and Rust/Tauri application compile together on the current host; it does not replace packaged installer, signing/notarization, accessibility, or runtime release-candidate verification. See [platform-support.md](platform-support.md) for the full support contract.
 
 ## Dependency lockfiles
 
