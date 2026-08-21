@@ -1,9 +1,7 @@
 name: Rustfmt fix
 
 on:
-  push:
-    branches:
-      - ci/cross-platform-native-smoke
+  pull_request:
     paths:
       - "src-tauri/**/*.rs"
       - ".github/workflows/rustfmt-fix.yml"
@@ -13,7 +11,6 @@ permissions:
 
 jobs:
   format:
-    if: github.event.head_commit.message != 'style: apply rustfmt output'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
