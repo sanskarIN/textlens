@@ -51,6 +51,9 @@ jobs:
       - name: Verify release identity before dependency setup
         run: npm run version:check
 
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
@@ -62,9 +65,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
 
       - name: Build native application without packaging
         run: npm run native:smoke
