@@ -17,6 +17,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 ## 0.2 — Reliability and polish
 
 - [ ] Validate packaged builds on each supported OS and attach real screenshots.
+- [x] Add continuous native compile smoke coverage for Windows, macOS, and Linux source changes.
 - [x] Expand analysis regression/property coverage for Unicode vocabulary invariants.
 - [x] Add a dedicated repeatable benchmark harness for analyzer throughput.
 - [x] Add versioned, validated settings backup/restore.
@@ -52,4 +53,6 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Document the stable schema-v2 and legacy-v1 import compatibility contract.
 - [x] Reaffirm the deterministic conservative encoding policy rather than adding unjustified statistical guessing.
 - [x] Keep release tag/version and checksum integrity tooling in the release path.
+- [x] Add a three-OS native smoke matrix that compiles the Tauri application without claiming packaged-release verification.
+- [x] Document the platform support contract and contributor portability rules in `docs/platform-support.md`.
 - [x] Keep remaining native packaging, signing, accessibility, and screenshot work as evidence-based external release gates.
