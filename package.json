@@ -27,6 +27,7 @@
     "release:checksums:verify": "node scripts/verify-release-checksums.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "native:smoke": "tauri build --debug --no-bundle",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
