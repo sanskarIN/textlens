@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-Version **2.0.12** source milestone, stable report-schema freeze, deterministic encoding-policy review, release-identity hardening, documentation completion, and final source-owned audit — 2026-08-19.
+Version **2.0.12** source milestone, stable report-schema freeze, deterministic encoding-policy review, release-identity hardening, documentation completion, and continuous cross-platform native compile validation — 2026-08-21.
 
-The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. This continuation advances the application source version from `0.1.0` to `2.0.12`, completes the stable report-schema compatibility contract, closes the conditional encoding-review roadmap item with an explicit conservative decision, and strengthens dependency-free release identity checks.
+The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. This continuation adds a reusable native Tauri smoke build and a Windows/macOS/Linux GitHub Actions matrix while preserving the separation between source-level compilation evidence and real packaged-release verification.
 
 This file deliberately separates source completion from environment-dependent release evidence. Do not describe unexecuted package-manager, native platform, signing, accessibility, screenshot, or release-artifact checks as completed.
 
@@ -12,7 +12,8 @@ This file deliberately separates source completion from environment-dependent re
 
 - Repository: `sanskarIN/textlens`
 - Default branch: `main`
-- Working release branch: `release/v2.0.12-final`
+- Working continuation branch: `ci/cross-platform-native-smoke`
+- Previous release branch: `release/v2.0.12-final`
 - Visibility: public
 - License: MIT
 - Primary stack: Rust + Tauri 2 + TypeScript + Vite
@@ -22,7 +23,74 @@ This file deliberately separates source completion from environment-dependent re
 - Required visible credit: **Made by the Sanskar**
 - Requested commit identity: `Sanskar <sanskarin@outlook.in>`
 
-## Version 2.0.12 work completed in this pass
+## 2026-08-21 cross-platform native validation continuation
+
+### Native smoke command
+
+Added the reusable package command:
+
+```bash
+npm run native:smoke
+```
+
+It expands to `tauri build --debug --no-bundle`, so contributors and CI use the same native compilation path without manufacturing installer artifacts or implying release-package verification.
+
+### Three-OS native smoke workflow
+
+Added `.github/workflows/platform-smoke.yml` with a non-fail-fast matrix for:
+
+- `ubuntu-22.04`;
+- `windows-latest`;
+- `macos-latest`.
+
+The workflow:
+
+- runs for relevant source/configuration changes on pull requests and `main`;
+- also supports manual dispatch;
+- uses read-only repository permissions;
+- cancels superseded runs for the same workflow/ref;
+- runs the dependency-free version/release identity gate before package installation;
+- installs stable Rust and restores the Rust cache;
+- installs the required Tauri/WebKit native packages on Linux;
+- installs frontend dependencies with audit/funding noise disabled;
+- executes `npm run native:smoke` on every host;
+- uses a per-job timeout so a stuck native build cannot run indefinitely.
+
+No host is marked `continue-on-error`; an OS-specific compile failure remains visible as a platform regression until investigated.
+
+### Platform support contract
+
+Added `docs/platform-support.md` documenting:
+
+- supported desktop source targets;
+- the native smoke CI host used for each platform family;
+- the distinction between native compilation and distributable package verification;
+- portability rules covering shell commands, paths, locale assumptions, line endings, keyboard conventions, responsive desktop UI, and platform-specific dependencies;
+- local native prerequisites;
+- the evidence required before a release is described as verified on Windows, macOS, or Linux;
+- the expected handling of platform-specific regressions.
+
+### Documentation and roadmap synchronization
+
+Updated:
+
+- `README.md` with the platform-smoke badge, support matrix, native smoke command, and platform support guide link;
+- `docs/setup.md` with host-side native smoke instructions and evidence boundaries;
+- `docs/testing.md` with the three-OS smoke strategy and a release-candidate matrix requirement;
+- `ROADMAP.md` to mark continuous native compile coverage and the platform support contract complete while keeping packaged-build/accessibility/signing/screenshot gates open.
+
+### Verification status for this continuation
+
+Verified from connected GitHub state before opening the pull request:
+
+- continuation branch exists and is based directly on `main`;
+- branch initially compared as ahead-only with no divergence;
+- the new workflow, package command, platform-support document, roadmap, setup guide, testing guide, README, and this handoff were committed independently with granular commit messages;
+- no claim has been made that Windows/macOS/Linux packaged installers have been built, installed, signed, notarized, screen-reader tested, or screenshot-verified in this environment.
+
+The actual GitHub-hosted platform matrix result must be read from the pull-request/commit checks after the branch is pushed through the normal GitHub workflow. A source change is not declared cross-platform release-verified merely because the workflow definition exists.
+
+## Version 2.0.12 work completed in the previous pass
 
 ### Application version synchronization
 
@@ -244,7 +312,7 @@ The document records:
 - external release gates that remain unverified;
 - explicit instruction not to publish a stable `v2.0.12` binary release merely because source version preparation is complete.
 
-## Audit state at the beginning of this pass
+## Audit state at the beginning of the 2.0.12 pass
 
 The connected GitHub repository was re-inspected after the merged final reliability audit.
 
@@ -261,7 +329,7 @@ Observed at the start of this 2.0.12 pass:
 
 The missing lockfiles are not being fabricated. They must be generated by their real package managers in a registry-capable/toolchain-capable environment.
 
-## Lockfile generation attempt in this pass
+## Lockfile generation attempt in the 2.0.12 pass
 
 The local environment provides Node/npm but does not provide Cargo/Rust.
 
@@ -463,6 +531,7 @@ Repository documentation now includes:
 - `docs/development.md`
 - `docs/architecture.md`
 - `docs/testing.md`
+- `docs/platform-support.md`
 - `docs/report-schema.md`
 - `docs/release.md`
 - `docs/releases/v2.0.12.md`
@@ -473,7 +542,7 @@ Repository documentation now includes:
 - `docs/branch-protection.md`
 - ADRs including the re-reviewed conservative encoding policy, Markdown report customization, and failure-safe local storage.
 
-## Verification performed in this 2.0.12 pass
+## Verification performed in the 2.0.12 pass
 
 Actually performed:
 
@@ -510,6 +579,7 @@ npm run format:check
 npm run docs:check
 npm run test
 npm run build
+npm run native:smoke
 
 cd src-tauri
 cargo fmt --check
@@ -518,7 +588,7 @@ cargo test --all-targets
 cargo run --release --example benchmark -- 16 5
 ```
 
-Clarification: the dependency-free version/release-document algorithm and release-tag algorithm were exercised locally against the 2.0.12 identity. The list above refers to the complete clean repository suite from an actual repository checkout with dependencies/toolchains available.
+Clarification: the dependency-free version/release-document algorithm and release-tag algorithm were exercised locally against the 2.0.12 identity. The list above refers to the complete clean repository suite from an actual repository checkout with dependencies/toolchains available. The three-OS native smoke workflow is intended to supply additional host compilation evidence after GitHub Actions executes it.
 
 ## Remaining external release gates
 
@@ -539,7 +609,7 @@ These are evidence/distribution tasks, not missing product source features:
 
 ## Definition-of-done status
 
-**Source-owned implementation for the current TextLens milestone, including 2.0.12 version preparation, stable report-schema compatibility, encoding-policy review, release identity gating, and documentation synchronization, is complete.**
+**Source-owned implementation for the current TextLens milestone, including 2.0.12 version preparation, stable report-schema compatibility, encoding-policy review, release identity gating, continuous Windows/macOS/Linux native compile smoke coverage, platform portability documentation, and documentation synchronization, is complete.**
 
 **Stable cross-platform release evidence is not complete.** Do not claim TextLens 2.0.12 is fully packaged, signed/notarized, native-accessibility-verified, lockfile-reproducible, screenshot-verified, or bug-free across every supported desktop until the external gates above are actually executed and recorded.
 
