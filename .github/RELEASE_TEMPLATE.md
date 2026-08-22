@@ -29,6 +29,8 @@
 
 - [ ] `npm run version:check` passes.
 - [ ] `npm run release:tag-check -- vX.Y.Z` passes for the intended tag.
+- [ ] `npm ci --no-audit --no-fund` installs exactly the committed `package-lock.json` graph.
+- [ ] `cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1` accepts the committed Cargo lockfile.
 - [ ] Frontend type-check passes.
 - [ ] Frontend lint passes.
 - [ ] Frontend deterministic format check passes.
@@ -36,10 +38,11 @@
 - [ ] Frontend tests pass.
 - [ ] Frontend production build passes.
 - [ ] Rust format check passes.
-- [ ] Rust Clippy passes with warnings denied.
-- [ ] Rust tests pass for all targets, including the stable report-schema guard.
-- [ ] Release-mode benchmark recorded.
-- [ ] Dependency/security checks pass.
+- [ ] Rust Clippy passes with warnings denied and `--locked`.
+- [ ] Rust tests pass for all targets with `--locked`, including the stable report-schema guard.
+- [ ] Cross-platform native smoke matrix is green for the exact release-candidate revision.
+- [ ] Release-mode benchmark recorded from the committed dependency graph.
+- [ ] Dependency/security checks pass against committed lockfiles.
 - [ ] Current report export/import/compare round trip checked.
 - [ ] Supported legacy report import checked.
 - [ ] Future report schema rejection checked.
@@ -57,7 +60,7 @@
 - [ ] Real release-candidate screenshots captured where applicable.
 - [ ] Final artifacts collected and `SHA256SUMS.txt` generated/verified.
 - [ ] `CHANGELOG.md`, `ROADMAP.md`, and `what_changed.md` updated.
-- [ ] Dependency lockfiles refreshed and committed from package-manager output.
+- [ ] `package-lock.json` and `src-tauri/Cargo.lock` match their manifests and any dependency change includes package-manager-generated lockfile diffs.
 
 ## Known limitations
 
