@@ -26,7 +26,7 @@ Current frontend helper coverage includes:
 
 ```bash
 cd src-tauri
-cargo test --lib
+cargo test --locked --lib
 ```
 
 Coverage includes core counts, vocabulary richness, keyword exclusions, Unicode words/graphemes, line endings, n-grams, BOM/UTF-16 decoding, undefined Windows-1252 byte handling, privacy-safe report rendering, configurable Markdown section rendering, canonical JSON export behavior, report schema/import validation, report atomic replacement, and settings backup validation/round trips.
@@ -42,7 +42,7 @@ Deterministic decoding fixtures cover malformed UTF-8, undefined Windows-1252 by
 ## Integration/property tests
 
 ```bash
-cargo test --all-targets
+cargo test --locked --all-targets
 ```
 
 Integration tests cover multiple writing systems and known regressions. `proptest` feeds arbitrary Unicode into the analyzer to verify panic-free behavior and invariants including byte/character/grapheme ordering and vocabulary bounds.
@@ -62,28 +62,30 @@ npm run docs:check
 npm run build
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --locked --all-targets --all-features -- -D warnings
 ```
 
 `npm run version:check` is dependency-free. It verifies that `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` declare the same application version and that README release identity, the matching changelog section, and `docs/releases/v<version>.md` are present for that version. For the current source milestone that version is 2.0.12.
 
 Application version and report-schema version are independent. A passing 2.0.12 version check does not authorize a report schema change; the report compatibility contract is in `docs/report-schema.md`.
 
-CI runs the version gate before `npm install`, and tagged release automation runs tag/version/document identity checks before Rust toolchain and platform dependency setup, so release identity drift fails as early as possible.
+CI runs the version gate before `npm ci`, verifies the committed npm lockfile through `npm ci`, and runs Rust quality gates with Cargo `--locked`. Tagged release automation performs tag/version/document identity checks before locked dependency installation and verifies `src-tauri/Cargo.lock` with `cargo metadata --locked` before native packaging.
+
+`package-lock.json` and `src-tauri/Cargo.lock` are release inputs. Dependency changes must update the corresponding package-manager-generated lockfile and pass the same locked install/build/test path used by CI.
 
 All checks above are release gates. Do not mark them passing merely because the source was inspected; record the actual command result in `what_changed.md`.
 
 ## Cross-platform native smoke
 
-For changes that can affect the desktop shell, frontend build, native dependencies, or Tauri configuration, run:
+For changes that can affect the desktop shell, frontend build, native dependencies, dependency locks, or Tauri configuration, run:
 
 ```bash
 npm run native:smoke
 ```
 
-The command performs a Tauri debug build with bundling disabled. `.github/workflows/platform-smoke.yml` executes the same command on `ubuntu-22.04`, `windows-latest`, and `macos-latest` for relevant pull requests and `main` updates.
+The command performs a Tauri debug build with bundling disabled. `.github/workflows/platform-smoke.yml` executes the same command on `ubuntu-22.04`, `windows-latest`, and `macos-latest` for relevant pull requests and `main` updates. Before the build, each matrix host installs npm dependencies with `npm ci` and verifies that Cargo accepts the committed lockfile with `--locked` metadata resolution.
 
-A green matrix proves that the checked-out source compiles into the native application on those CI hosts. It does not prove packaged installer behavior, signing/notarization, assistive-technology behavior, screenshots, or compatibility with every OS/distribution version. Those remain release-candidate acceptance requirements described in [platform-support.md](platform-support.md).
+A green matrix proves that the checked-out source and committed dependency locks compile into the native application on those CI hosts. It does not prove packaged installer behavior, signing/notarization, assistive-technology behavior, screenshots, or compatibility with every OS/distribution version. Those remain release-candidate acceptance requirements described in [platform-support.md](platform-support.md).
 
 When the matrix fails only on one operating system, treat that as a platform regression until the failure is shown to be runner/infrastructure-specific. Avoid bypassing a failing host with `continue-on-error` merely to obtain a green aggregate status.
 
@@ -93,7 +95,7 @@ Run the release-mode benchmark with an input size in MiB and optional iteration 
 
 ```bash
 cd src-tauri
-cargo run --release --example benchmark -- 16 5
+cargo run --locked --release --example benchmark -- 16 5
 ```
 
 Record machine/OS/toolchain details when comparing results between revisions.
