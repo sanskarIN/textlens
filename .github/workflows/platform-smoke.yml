@@ -7,6 +7,7 @@ on:
       - "src/**"
       - "src-tauri/**"
       - "package.json"
+      - "package-lock.json"
       - "tsconfig.json"
       - "vite.config.ts"
       - ".github/workflows/platform-smoke.yml"
@@ -15,6 +16,7 @@ on:
       - "src/**"
       - "src-tauri/**"
       - "package.json"
+      - "package-lock.json"
       - "tsconfig.json"
       - "vite.config.ts"
       - ".github/workflows/platform-smoke.yml"
@@ -42,23 +44,28 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Verify release identity before dependency setup
         run: npm run version:check
 
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
 
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      - name: Verify Cargo lockfile
+        run: cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1
 
       - name: Install Linux prerequisites
         if: runner.os == 'Linux'
