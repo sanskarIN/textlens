@@ -2,10 +2,14 @@
 
 ## Daily workflow
 
+For a clean checkout or after pulling dependency changes:
+
 ```bash
-npm install
+npm ci
 npm run tauri:dev
 ```
+
+Use `npm install` only when intentionally changing npm dependencies so the resulting `package-lock.json` diff can be reviewed and committed with the manifest change.
 
 ## Frontend checks
 
@@ -24,8 +28,8 @@ npm run build
 ```bash
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
 ## Design rules
@@ -105,4 +109,6 @@ Native errors become user-safe messages through `AppError`. Avoid surfacing full
 
 ## Dependencies
 
-Keep runtime dependencies small. Dependabot proposes updates; review changelogs and run the full suite before merging. Lockfiles should be refreshed and committed from an environment with registry access before a release candidate is declared reproducible.
+Keep runtime dependencies small. Dependabot proposes updates; review changelogs and run the full suite before merging.
+
+`package-lock.json` and `src-tauri/Cargo.lock` are committed and CI-enforced. A dependency-manifest change must include the package-manager-generated lockfile change in the same review. Verify npm changes with `npm ci`; verify Cargo changes with `cargo metadata --locked` plus the locked Clippy/test commands. Never hand-edit dependency resolution data.
