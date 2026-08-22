@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-Version **2.0.12** source milestone, stable report-schema freeze, deterministic encoding-policy review, release-identity hardening, documentation completion, and continuous cross-platform native compile validation — 2026-08-21.
+Version **2.0.12** source milestone, stable report-schema freeze, deterministic encoding-policy review, release-identity hardening, documentation completion, continuous cross-platform native compile validation, and CI compatibility cleanup — 2026-08-22.
 
-The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. This continuation adds a reusable native Tauri smoke build and a Windows/macOS/Linux GitHub Actions matrix while preserving the separation between source-level compilation evidence and real packaged-release verification.
+The repository contains the product implementation targeted by the current TextLens specification plus the completed reliability/privacy/release hardening from the previous final audit. The current continuation adds reusable Windows/macOS/Linux native Tauri smoke validation, records its successful hosted execution, and closes newly surfaced Rust 1.98/format-policy CI blockers while preserving the separation between source-level compilation evidence and real packaged-release verification.
 
 This file deliberately separates source completion from environment-dependent release evidence. Do not describe unexecuted package-manager, native platform, signing, accessibility, screenshot, or release-artifact checks as completed.
 
@@ -22,6 +22,45 @@ This file deliberately separates source completion from environment-dependent re
 - Settings backup schema: `2`
 - Required visible credit: **Made by the Sanskar**
 - Requested commit identity: `Sanskar <sanskarin@outlook.in>`
+
+## 2026-08-22 CI closure continuation
+
+### Hosted cross-platform evidence now recorded
+
+GitHub Actions run `32435832567` completed successfully for every native smoke matrix host:
+
+- `Native smoke (ubuntu-22.04)` — success;
+- `Native smoke (windows-latest)` — success;
+- `Native smoke (macos-latest)` — success.
+
+Each successful host completed the dependency-free release-identity gate, frontend dependency installation, stable Rust setup/cache, and `npm run native:smoke`. Linux additionally installed the required native WebKit/Tauri prerequisites. This is real hosted source-level native compilation evidence; it is still not a claim that release installers were packaged, installed, signed, notarized, or manually accessibility-tested.
+
+### Normal CI blockers found and corrected
+
+The same pull-request revision exposed four quality-gate failures that did not appear in the native smoke matrix:
+
+- Rust 1.98 Clippy flagged manual CR/LF pattern comparison in paragraph scanning;
+- Rust 1.98 Clippy flagged an unnecessary descending `sort_by` in line-ending dominance selection;
+- Clippy treated the canonical default `write_report` wrapper as dead code because the Tauri command always called the configurable writer;
+- the repository format checker found that `what_changed.md` did not end with a final newline.
+
+Corrections landed as small logical commits:
+
+- `3a3439201bc3f743d0bbfb68d5a81f5f65e5fa3d` — use the modern character-pattern form for CR/LF trimming and `sort_by_key` with `Reverse` for line-ending ordering without changing tie precedence;
+- `0167f1787c4d346b5b1960a4210e71cd8edd7a98` — route export requests with no custom Markdown options through the canonical default writer, while requests with explicit options continue through the configurable writer;
+- this handoff update records the successful matrix, the CI findings, and restores the required final newline.
+
+The export command behavior remains backward-compatible: omitted export options still produce the same default report, and supplied export options preserve the existing configurable path.
+
+### Repository audit repeated
+
+The connected repository was re-audited during this continuation:
+
+- no open GitHub issues were returned;
+- repository code search returned no unresolved `TODO` implementation markers;
+- repository code search returned no unresolved `FIXME`, `HACK`, or `XXX` implementation markers;
+- the cross-platform smoke workflow is green on Linux, Windows, and macOS;
+- external distribution/release-evidence gates listed later in this file remain intentionally open until their real artifacts or credentials exist.
 
 ## 2026-08-21 cross-platform native validation continuation
 
