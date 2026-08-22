@@ -2,12 +2,14 @@
 
 ## Supported versions
 
-Until TextLens reaches 1.0, security fixes are applied to the latest development/release line.
+Security fixes are applied to the current maintained TextLens source/release line. Historical development lines receive fixes only when a maintainer explicitly backports them.
 
 | Version | Supported |
 |---|---|
-| 0.1.x | Yes |
-| Older | Best effort only |
+| 2.0.x | Yes |
+| 0.1.x and older development lines | Best effort only |
+
+The current source milestone is 2.0.12. A source milestone being supported does not imply that every operating-system package for that version has completed release-candidate verification; see `docs/releases/v2.0.12.md` and `docs/platform-support.md` for the evidence boundary.
 
 ## Reporting a vulnerability
 
@@ -35,6 +37,7 @@ Include affected version/commit, operating system, reproduction steps, expected/
 - Imported report text fields are escaped before HTML presentation.
 - Optional recent-file metadata is disabled by default, capped at 10 entries, excludes full paths/content, rejects path-like names, and provides immediate deletion controls.
 - Quick actions search is static/local and invokes existing application functions rather than evaluating user-provided commands.
+- npm and Cargo dependency lockfiles are committed and security automation audits those reviewed dependency graphs rather than silently regenerating them.
 
 ## Untrusted local input
 
@@ -55,4 +58,4 @@ The local operating-system user controls selected input and export paths. TextLe
 
 ## Dependencies
 
-CI includes static and dependency checks, and Dependabot is configured for npm, Cargo, and GitHub Actions updates.
+CI includes CodeQL, npm dependency auditing, Rust dependency auditing, locked build/test checks, and Dependabot updates for npm, Cargo, and GitHub Actions. Dependency manifest changes must carry the corresponding package-manager-generated lockfile update so review and security checks examine the same graph that CI/release automation consumes.

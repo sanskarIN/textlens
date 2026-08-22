@@ -18,12 +18,21 @@ Configure a branch ruleset or branch protection rule targeting `main` with these
 
 ### Required status checks
 
-The primary merge gates defined by `.github/workflows/ci.yml` are:
+The primary always-on merge gates defined by `.github/workflows/ci.yml` are:
 
 - `Frontend quality`
 - `Rust quality`
+- `Rust MSRV 1.77.2`
 
 Require these only after GitHub has observed them successfully at least once and their check contexts appear in the repository's branch-rules UI. This avoids accidentally blocking every merge because of a misspelled or never-created context.
+
+The platform workflow also reports:
+
+- `Native smoke (ubuntu-22.04)`
+- `Native smoke (windows-latest)`
+- `Native smoke (macos-latest)`
+
+Those checks are intentionally path-filtered. Require them only if the selected GitHub ruleset can handle skipped path-filtered workflows without blocking documentation-only pull requests. Otherwise keep them enabled as visible merge evidence and require them procedurally for platform-sensitive changes.
 
 Additional security workflows should remain enabled, including dependency review and the repository's security scanning workflow. If their individual check contexts are made required later, select the exact context displayed by GitHub rather than typing a guessed name.
 
@@ -43,16 +52,19 @@ Do not enable a rule that depends on unavailable signing credentials, external d
 
 ## Suggested setup order
 
-1. Confirm `Frontend quality` and `Rust quality` have completed successfully on a recent pull request or `main` commit.
-2. Open **Settings → Rules → Rulesets** (or **Branches → Branch protection rules**, depending on the GitHub UI available to the repository).
-3. Create a rule targeting the exact branch `main`.
-4. Require pull requests and conversation resolution.
-5. Require the two confirmed CI check contexts above.
-6. Block force pushes and deletion.
-7. Leave **Require linear history** disabled.
-8. Save the rule.
-9. Open a small documentation pull request and verify that merging is blocked until required checks finish, then permitted after they pass.
-10. Record the enabled rule in `what_changed.md` only after the repository UI confirms it is active.
+1. Confirm `Frontend quality`, `Rust quality`, and `Rust MSRV 1.77.2` have completed successfully on a recent pull request or `main` commit.
+2. Confirm the three native smoke contexts report successfully on a platform-sensitive pull request.
+3. Open **Settings → Rules → Rulesets** (or **Branches → Branch protection rules**, depending on the GitHub UI available to the repository).
+4. Create a rule targeting the exact branch `main`.
+5. Require pull requests and conversation resolution.
+6. Require the three confirmed always-on CI contexts above.
+7. Add platform-smoke contexts only when skipped/path-filter behavior has been verified not to block unrelated pull requests.
+8. Block force pushes and deletion.
+9. Leave **Require linear history** disabled.
+10. Save the rule.
+11. Open a small documentation pull request and verify that merging is blocked until required always-on checks finish, then permitted after they pass.
+12. Open or reuse a platform-sensitive pull request and verify the three native-smoke checks behave as intended.
+13. Record the enabled rule in `what_changed.md` only after the repository UI confirms it is active.
 
 ## Why linear history stays off
 
@@ -64,8 +76,9 @@ If a newly enabled rule blocks all legitimate merges:
 
 1. Inspect the exact missing check context in the pull request.
 2. Compare it with the workflow/job names in `.github/workflows/`.
-3. Remove only the invalid required context or correct the workflow; do not disable all protection as the first response.
-4. Re-run the affected workflow.
-5. Restore/strengthen the rule after the repository has a known-good check run.
+3. Check whether the missing context belongs to a path-filtered workflow that was legitimately skipped.
+4. Remove only the invalid required context or correct the workflow; do not disable all protection as the first response.
+5. Re-run the affected workflow.
+6. Restore/strengthen the rule after the repository has a known-good check run.
 
 Never weaken branch protection merely to make a failing quality gate disappear. Fix the failing gate or the incorrect rule instead.

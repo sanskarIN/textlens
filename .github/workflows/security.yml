@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   codeql:
     permissions:
@@ -18,11 +22,26 @@ jobs:
     name: CodeQL JavaScript/TypeScript
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
+
+  npm-audit:
+    name: npm dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify committed npm lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Audit npm dependency graph
+        run: npm audit --audit-level=high
 
   cargo-audit:
     name: Rust dependency audit
@@ -32,11 +51,10 @@ jobs:
       issues: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - name: Generate dependency lock for audit
-        working-directory: src-tauri
-        run: cargo generate-lockfile
+      - name: Verify committed Cargo lockfile
+        run: cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

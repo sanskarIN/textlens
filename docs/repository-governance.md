@@ -7,18 +7,20 @@ This document describes recommended GitHub settings for the public TextLens repo
 Protect `main` with a ruleset or branch protection rule that:
 
 - requires a pull request before merging for normal contributor work;
-- requires the `Frontend quality`, `Rust quality`, and security-related status checks once their exact check names are visible in GitHub Actions;
+- requires the `Frontend quality`, `Rust quality`, and `Rust MSRV 1.77.2` CI checks once their exact contexts have reported successfully;
+- requires the three native platform-smoke checks for changes covered by that workflow when GitHub ruleset configuration can accommodate path-filtered checks without blocking unrelated documentation-only pull requests;
+- keeps dependency review and security scanning enabled;
 - requires branches to be up to date before merge when practical;
 - blocks force pushes and branch deletion;
 - requires conversation resolution;
 - applies to administrators unless an emergency recovery exception is explicitly needed;
 - keeps bypass permissions limited to trusted maintainers.
 
-Do not configure a required status-check name before that check has run at least once, because GitHub cannot validate a nonexistent check reliably.
+Do not configure a required status-check name before that check has run at least once, because GitHub cannot validate a nonexistent check reliably. Path-filtered workflows require special care: do not make a skipped context mandatory in a way that permanently blocks unrelated pull requests.
 
 ## Merge policy
 
-Prefer squash merge for external pull requests that contain fix-up commits. Rebase merge is acceptable for already-clean atomic histories. Avoid merge commits unless preserving a multi-commit feature history is valuable.
+Prefer squash merge for external pull requests that contain fix-up commits. Rebase merge is acceptable for already-clean atomic histories. Normal merge commits are also acceptable when preserving a deliberate granular project history is valuable.
 
 ## Suggested labels
 
@@ -37,15 +39,14 @@ Never use a public issue for an undisclosed vulnerability; follow `SECURITY.md` 
 
 ## Milestones
 
-Recommended milestones mirror the engineering plan:
+Recommended milestone names should reflect the current release line rather than obsolete pre-1.0 planning labels. Examples:
 
-1. `v0.1 MVP`
-2. `v0.2 Core completeness`
-3. `v0.3 UX & hardening`
-4. `v0.4 Quality & performance`
-5. `v1.0 Release candidate`
+1. `2.0.x Reliability`
+2. `2.0.x Release evidence`
+3. `Next feature milestone`
+4. `Accessibility & platform verification`
 
-Close or move stale issues during milestone review rather than leaving inaccurate target versions.
+Create a milestone only when there is real scoped work for it. Close or move stale issues during milestone review rather than leaving inaccurate target versions.
 
 ## Discussions
 
@@ -57,6 +58,10 @@ If GitHub Discussions is enabled, suggested categories are:
 - Show and tell
 
 Support requests containing private documents or sensitive content should not be pasted publicly. Direct users to the support contact in `SUPPORT.md`.
+
+## Dependencies
+
+`package-lock.json` and `src-tauri/Cargo.lock` are reviewed repository inputs. Dependabot updates must preserve manifest/lockfile consistency and pass the same `npm ci`, Cargo `--locked`, security, and platform gates as human-authored dependency changes.
 
 ## Releases
 

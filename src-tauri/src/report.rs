@@ -3,9 +3,7 @@ use std::{fs, path::Path};
 use serde::Deserialize;
 
 use crate::{
-    domain::models::{
-        AnalysisReport, FrequencyItem, SourceKind, CURRENT_REPORT_VERSION,
-    },
+    domain::models::{AnalysisReport, FrequencyItem, SourceKind, CURRENT_REPORT_VERSION},
     error::AppError,
 };
 
@@ -216,7 +214,10 @@ fn render_markdown_with_options(r: &AnalysisReport, options: ReportExportOptions
         for (name, value) in [
             ("Words", r.stats.words as u64),
             ("Unique words", r.stats.unique_words as u64),
-            ("Longest word (characters)", r.stats.max_word_characters as u64),
+            (
+                "Longest word (characters)",
+                r.stats.max_word_characters as u64,
+            ),
             ("Characters", r.stats.characters as u64),
             ("Graphemes", r.stats.graphemes as u64),
             ("Sentences", r.stats.sentences as u64),
@@ -355,12 +356,8 @@ mod tests {
         fs::write(&path, "old").unwrap();
         let report = analyze_text("hello world", AnalysisOptions::default());
         write_report(&path, &report, "json").unwrap();
-        assert!(fs::read_to_string(&path)
-            .unwrap()
-            .contains("\"words\": 2"));
-        assert!(!path
-            .with_file_name(".report.json.textlens-backup")
-            .exists());
+        assert!(fs::read_to_string(&path).unwrap().contains("\"words\": 2"));
+        assert!(!path.with_file_name(".report.json.textlens-backup").exists());
     }
 
     #[test]
@@ -410,7 +407,10 @@ mod tests {
         let mut report = analyze_text("hello", AnalysisOptions::default());
         report.stats.unique_words = 2;
         fs::write(&path, serde_json::to_vec(&report).unwrap()).unwrap();
-        assert!(matches!(read_report(&path), Err(AppError::InvalidReportData)));
+        assert!(matches!(
+            read_report(&path),
+            Err(AppError::InvalidReportData)
+        ));
     }
 
     #[test]
@@ -429,6 +429,8 @@ mod tests {
         let report = analyze_text("hello", AnalysisOptions::default());
         let error = write_report(&path, &report, "json").unwrap_err();
         assert!(matches!(error, AppError::MissingDestination));
-        assert!(!error.to_string().contains(missing.to_string_lossy().as_ref()));
+        assert!(!error
+            .to_string()
+            .contains(missing.to_string_lossy().as_ref()));
     }
 }

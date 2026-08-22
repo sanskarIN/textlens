@@ -17,6 +17,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 ## 0.2 — Reliability and polish
 
 - [ ] Validate packaged builds on each supported OS and attach real screenshots.
+- [x] Add continuous native compile smoke coverage for Windows, macOS, and Linux source changes.
 - [x] Expand analysis regression/property coverage for Unicode vocabulary invariants.
 - [x] Add a dedicated repeatable benchmark harness for analyzer throughput.
 - [x] Add versioned, validated settings backup/restore.
@@ -27,6 +28,8 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Add deterministic byte fixtures for malformed UTF-8, UTF-16 boundaries, and Windows-1252 edge bytes.
 - [x] Re-audit encoding heuristics and retain the conservative deterministic policy until an evidence-backed, offline, clearly labelled alternative exists (ADR-0003).
 - [x] Add richer report customization without including raw source text by default.
+- [x] Commit package-manager-generated npm/Cargo lockfiles and enforce them in CI, security, smoke, and release paths.
+- [x] Enforce the declared Rust minimum supported version in CI.
 
 ## 0.3 — Power-user workflows
 
@@ -52,4 +55,7 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Document the stable schema-v2 and legacy-v1 import compatibility contract.
 - [x] Reaffirm the deterministic conservative encoding policy rather than adding unjustified statistical guessing.
 - [x] Keep release tag/version and checksum integrity tooling in the release path.
+- [x] Add a three-OS native smoke matrix that compiles the Tauri application without claiming packaged-release verification.
+- [x] Document the platform support contract and contributor portability rules in `docs/platform-support.md`.
+- [x] Generate, review, commit, and consume npm/Cargo dependency lockfiles instead of deferring reproducibility to release time.
 - [x] Keep remaining native packaging, signing, accessibility, and screenshot work as evidence-based external release gates.
