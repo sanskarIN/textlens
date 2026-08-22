@@ -1,6 +1,6 @@
 # Platform Support
 
-TextLens is designed as a desktop application for Windows, macOS, and Linux. Cross-platform support is treated as a combination of portable source code, native compilation, packaging, installation, and platform-specific acceptance evidence.
+TextLens is designed as a desktop application for Windows, macOS, and Linux. Cross-platform support is treated as a combination of portable source code, locked dependency resolution, native compilation, packaging, installation, and platform-specific acceptance evidence.
 
 ## Support matrix
 
@@ -10,21 +10,21 @@ TextLens is designed as a desktop application for Windows, macOS, and Linux. Cro
 | macOS | Supported | `macos-latest` | Tauri App/DMG release job | External Apple credential gate |
 | Linux | Supported | `ubuntu-22.04` | Tauri Linux bundle release job | Distribution-specific review gate |
 
-The native smoke workflow compiles the application without producing distributable bundles. A green smoke build proves that the checked-out source, frontend build, Rust/Tauri core, and native host toolchain compile together on that runner. It does **not** by itself prove installer correctness, signing, notarization, runtime accessibility, or behavior on every OS version/distribution.
+The native smoke workflow compiles the application without producing distributable bundles. A green smoke build proves that the checked-out source, committed npm/Cargo dependency locks, frontend build, Rust/Tauri core, and native host toolchain compile together on that runner. It does **not** by itself prove installer correctness, signing, notarization, runtime accessibility, or behavior on every OS version/distribution.
 
 ## Continuous native smoke gate
 
-`.github/workflows/platform-smoke.yml` runs for relevant source changes on pull requests and `main`, and can also be started manually.
+`.github/workflows/platform-smoke.yml` runs for relevant source/dependency changes on pull requests and `main`, and can also be started manually.
 
 Each matrix entry:
 
 1. checks out the same repository revision;
-2. installs Node.js 22;
+2. installs Node.js 22 and restores the npm cache keyed by `package-lock.json`;
 3. runs the dependency-free application/release identity check;
-4. installs the stable Rust toolchain;
-5. restores the Rust build cache where available;
-6. installs the required Linux WebKit/Tauri build packages on the Linux runner;
-7. installs frontend dependencies;
+4. installs frontend dependencies exactly with `npm ci`;
+5. installs the stable Rust toolchain and restores the Rust build cache where available;
+6. verifies `src-tauri/Cargo.lock` with `cargo metadata --locked`;
+7. installs the required Linux WebKit/Tauri build packages on the Linux runner;
 8. runs `npm run native:smoke`.
 
 The reusable smoke command is:
@@ -47,6 +47,7 @@ Changes should preserve these rules unless an explicit platform-specific impleme
 - avoid assumptions about `Ctrl` versus `Cmd` in user-facing shortcut behavior;
 - keep CSS responsive to narrow desktop windows and scaling;
 - do not add native dependencies that compile on only one supported host without a documented fallback or conditional implementation;
+- keep dependency manifest changes paired with package-manager-generated lockfile updates;
 - keep release packaging logic in Tauri/GitHub Actions rather than undocumented developer-machine scripts.
 
 ## Local development prerequisites
@@ -69,9 +70,9 @@ See [setup.md](setup.md) for concrete setup commands.
 
 Before describing a binary release as verified on a platform, record all of the following for the exact release candidate:
 
-1. clean checkout and dependency installation;
+1. clean checkout plus `npm ci` and locked Cargo dependency verification;
 2. frontend static/type/test/build gates;
-3. Rust format, Clippy, test, and native build gates;
+3. Rust format, locked Clippy/test, and native build gates;
 4. packaged bundle generation;
 5. installation/launch of the generated artifact;
 6. local file open/analyze/export/import/compare smoke tests;
