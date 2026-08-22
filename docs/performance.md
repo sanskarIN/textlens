@@ -29,11 +29,11 @@ The unique-word metric reuses the keyword frequency map and therefore does not r
 
 ## Benchmark harness
 
-Run the repository-owned synthetic benchmark after installing the Rust toolchain:
+Run the repository-owned synthetic benchmark against the committed Cargo dependency graph after installing the Rust toolchain:
 
 ```bash
 cd src-tauri
-cargo run --release --example benchmark -- 16 5
+cargo run --locked --release --example benchmark -- 16 5
 ```
 
 The first argument is the approximate input size in MiB (1–512). The second is the iteration count (1–25). The harness reports every iteration plus average throughput so warm-up and outlier behavior are visible.
@@ -41,7 +41,7 @@ The first argument is the approximate input size in MiB (1–512). The second is
 For meaningful comparisons:
 
 1. Use a release build.
-2. Keep the same machine, power mode, OS, and Rust toolchain.
+2. Keep the same machine, power mode, OS, Rust toolchain, and `src-tauri/Cargo.lock` revision.
 3. Close unrelated CPU-heavy programs.
 4. Run at least five iterations.
 5. Compare both elapsed time and throughput.
