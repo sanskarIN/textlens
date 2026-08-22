@@ -35,11 +35,12 @@ Do not move an existing release tag to a different commit.
 ## Preparation
 
 1. Update changelog, roadmap, documentation, and `what_changed.md`.
-2. Generate/refresh dependency lockfiles in an environment with registry access and review the diff. Never hand-author lockfiles.
-3. Run the complete quality suite:
+2. Confirm `package-lock.json` and `src-tauri/Cargo.lock` match their manifests. When dependency manifests intentionally change, regenerate the corresponding lockfile with its real package manager, review the diff, and commit manifest plus lockfile together. Never hand-author lockfiles.
+3. Run the complete quality suite from the committed dependency graph:
 
    ```bash
    npm run version:check
+   npm ci --no-audit --no-fund
    npm run check
    npm run lint
    npm run format:check
@@ -48,18 +49,24 @@ Do not move an existing release tag to a different commit.
    npm run build
    cd src-tauri
    cargo fmt --check
-   cargo clippy --all-targets --all-features -- -D warnings
-   cargo test --all-targets
+   cargo clippy --locked --all-targets --all-features -- -D warnings
+   cargo test --locked --all-targets
    ```
 
-4. Run the release-mode synthetic benchmark and record the result in the release notes or performance evidence.
-5. Build from a clean checkout on Windows, macOS, and Linux.
-6. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
-7. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
-8. Complete the manual accessibility checklist in `docs/accessibility.md`.
-9. Replace repository mock screenshots with real captures from the verified release candidate where possible.
-10. Run the tag check against the intended tag.
-11. Tag only the tested commit as `vX.Y.Z`.
+4. Verify Cargo accepts the committed lock without mutation:
+
+   ```bash
+   cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1
+   ```
+
+5. Run the release-mode synthetic benchmark with `--locked` and record the result in the release notes or performance evidence.
+6. Build from a clean checkout on Windows, macOS, and Linux.
+7. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
+8. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
+9. Complete the manual accessibility checklist in `docs/accessibility.md`.
+10. Replace repository mock screenshots with real captures from the verified release candidate where possible.
+11. Run the tag check against the intended tag.
+12. Tag only the tested commit as `vX.Y.Z`.
 
 ## Data compatibility checks
 
@@ -78,9 +85,9 @@ Before tagging:
 
 ## Automation
 
-Pushing `v*` triggers `.github/workflows/release.yml`, which first verifies that the tag equals `v` plus the application version, then builds on Windows, macOS, and Linux and creates a draft GitHub Release.
+Pushing `v*` triggers `.github/workflows/release.yml`, which first verifies that the tag equals `v` plus the application version, verifies version/release documentation identity, installs the exact npm graph with `npm ci`, verifies the committed Cargo lock with `cargo metadata --locked`, then builds on Windows, macOS, and Linux and creates a draft GitHub Release.
 
-The draft must remain unpublished until platform artifacts are manually installed and checked. A successful workflow is evidence that packaging completed, not evidence that every runtime behavior or accessibility path was manually verified.
+The draft must remain unpublished until platform artifacts are manually installed and checked. A successful workflow is evidence that packaging completed from the committed dependency locks, not evidence that every runtime behavior or accessibility path was manually verified.
 
 ## Signing
 
