@@ -1,0 +1,75 @@
+name: Generate dependency lockfiles
+
+on:
+  push:
+    branches:
+      - ci/cross-platform-native-smoke
+    paths:
+      - .github/workflows/generate-lockfiles.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lockfiles-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate npm and Cargo lockfiles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Configure commit identity
+        run: |
+          git config user.name "Sanskar"
+          git config user.email "sanskarin@outlook.in"
+
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Commit npm lockfile
+        shell: bash
+        run: |
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current."
+          else
+            git commit -m "build: add generated npm lockfile"
+          fi
+
+      - name: Generate Cargo lockfile
+        run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify generated lockfiles
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1 >/dev/null
+
+      - name: Commit Cargo lockfile
+        shell: bash
+        run: |
+          git add src-tauri/Cargo.lock
+          if git diff --cached --quiet; then
+            echo "src-tauri/Cargo.lock is already current."
+          else
+            git commit -m "build: add generated Cargo lockfile"
+          fi
+
+      - name: Push generated commits
+        shell: bash
+        run: git push origin "HEAD:${GITHUB_REF_NAME}"
