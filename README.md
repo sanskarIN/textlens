@@ -51,6 +51,7 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Guarded startup recovery instead of a blank window if application initialization fails.
 - Privacy-preserving manual update section that opens GitHub Releases only after explicit user action; no background update polling.
 - Release-tag validation plus deterministic SHA-256 artifact checksum generation and verification tools.
+- Committed npm and Cargo lockfiles enforced by CI/release automation for reproducible dependency resolution.
 - Continuous no-bundle native compile smoke coverage on Windows, macOS, and Linux for relevant source changes.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
@@ -107,14 +108,16 @@ Install Node.js 20.19+ (or 22.12+), Rust stable via `rustup`, and Tauri's OS-nat
 ```bash
 git clone https://github.com/sanskarIN/textlens.git
 cd textlens
-npm install
+npm ci
 npm run tauri:dev
 ```
+
+`npm ci` installs the exact npm graph committed in `package-lock.json`.
 
 ## Development setup
 
 ```bash
-npm install
+npm ci
 npm run version:check
 npm run check
 npm run lint
@@ -126,11 +129,11 @@ npm run native:smoke
 
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
-`npm run native:smoke` requires the native prerequisites for the current host and performs a Tauri debug build without packaging installers.
+`npm run native:smoke` requires the native prerequisites for the current host and performs a Tauri debug build without packaging installers. CI additionally verifies that `src-tauri/Cargo.lock` is accepted with Cargo `--locked` before native builds.
 
 Full guides:
 
@@ -147,10 +150,12 @@ Full guides:
 
 ## Build and release
 
-Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Before tagging, verify that the intended tag matches the package version.
+Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Install from the committed npm lockfile and verify the committed Cargo lock before packaging. Before tagging, verify that the intended tag matches the package version.
 
 ```bash
 npm run version:check
+npm ci --no-audit --no-fund
+cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps --format-version 1
 npm run release:tag-check -- v2.0.12
 npm run tauri:build
 ```
@@ -201,6 +206,7 @@ Do not report security vulnerabilities in a public issue.
 
 ```bash
 npm run version:check
+npm ci --no-audit --no-fund
 npm run check
 npm run lint
 npm run format:check
@@ -210,15 +216,15 @@ npm run build
 npm run native:smoke
 cd src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets
 ```
 
 See [docs/testing.md](docs/testing.md) for automated/native smoke coverage and manual acceptance across report customization/import compatibility, Unicode, settings, local analysis presets, recent metadata, Quick actions, large files, and platform release evidence.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Report-schema changes must preserve or deliberately document compatibility behavior and update [docs/report-schema.md](docs/report-schema.md). Platform-sensitive changes must preserve the portability rules in [docs/platform-support.md](docs/platform-support.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Keep changes focused and add regression tests for bug fixes. Dependency manifest changes must include the package-manager-generated lockfile change. Report-schema changes must preserve or deliberately document compatibility behavior and update [docs/report-schema.md](docs/report-schema.md). Platform-sensitive changes must preserve the portability rules in [docs/platform-support.md](docs/platform-support.md).
 
 ## Roadmap
 
