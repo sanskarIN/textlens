@@ -44,12 +44,13 @@ pub async fn export_report(
 ) -> Result<(), String> {
     tracing::debug!(operation = "export_report", "report export requested");
     tauri::async_runtime::spawn_blocking(move || {
-        crate::report::write_report_with_options(
-            PathBuf::from(path).as_path(),
-            &report,
-            &format,
-            options.unwrap_or_default(),
-        )
+        let path = PathBuf::from(path);
+        match options {
+            Some(options) => {
+                crate::report::write_report_with_options(path.as_path(), &report, &format, options)
+            }
+            None => crate::report::write_report(path.as_path(), &report, &format),
+        }
     })
     .await
     .map_err(|error| AppError::BackgroundTask(error.to_string()).to_string())?
