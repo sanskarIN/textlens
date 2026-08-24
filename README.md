@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-sanskarIN-FFDD00?logo=buy-me-a-coffee&logoColor=000000)](https://buymeacoffee.com/sanskarIN)
 
-**Current source version: 2.0.12**
+**Current source version: 2.0.13**
 
 **Made by the Sanskar**
 
@@ -49,6 +49,8 @@ TextLens is an open-source desktop text analyzer for Windows, macOS, and Linux. 
 - Failure-safe local preference storage with a session-only in-memory fallback when WebView persistence is blocked.
 - Guarded startup recovery instead of a blank window if application initialization fails.
 - Privacy-preserving manual update section that opens GitHub Releases only after explicit user action; no background update polling.
+- Reproducible-release preflight requiring reviewed npm/Cargo lockfiles before tagged native packaging, plus `npm ci` and Cargo locked-manifest verification.
+- Machine-readable per-platform build evidence and a manually dispatched Windows/macOS/Linux release-candidate audit workflow.
 - Release-tag validation plus deterministic SHA-256 artifact checksum generation and verification tools.
 - Light, dark, and system themes plus reduced-motion support.
 - Keyboard shortcuts and accessible focus/semantic states.
@@ -92,7 +94,7 @@ The Markdown picker is used by the visible export button, Quick actions, and `Ct
 - **TypeScript** — strongly typed UI behavior, report comparison/customization, Quick actions, recent-metadata/preset validation, settings, and presentation logic.
 - **Vite** — frontend development/build.
 - **Vitest + Rust tests + proptest** — automated verification.
-- **GitHub Actions** — CI, security checks, release automation, version/tag consistency enforcement.
+- **GitHub Actions** — CI, security checks, release automation, release-candidate evidence, and version/tag consistency enforcement.
 
 ## Quick start
 
@@ -133,17 +135,19 @@ Full guides:
 - [Testing](docs/testing.md)
 - [Report schema compatibility](docs/report-schema.md)
 - [Release](docs/release.md)
+- [Release evidence](docs/release-evidence.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Accessibility](docs/accessibility.md)
 - [Performance](docs/performance.md)
 
 ## Build and release
 
-Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Before tagging, verify that the intended tag matches the package version.
+Before packaging, run `npm run version:check` so npm, Cargo, and Tauri release metadata cannot silently drift apart. Public/tagged packaging additionally requires reviewed npm and Cargo lockfiles; `npm run release:readiness` deliberately fails until those package-manager-generated files are present and valid.
 
 ```bash
 npm run version:check
-npm run release:tag-check -- v2.0.12
+npm run release:readiness
+npm run release:tag-check -- v2.0.13
 npm run tauri:build
 ```
 
@@ -154,7 +158,7 @@ npm run release:checksums -- artifacts release-metadata/SHA256SUMS.txt
 npm run release:checksums:verify -- artifacts release-metadata/SHA256SUMS.txt
 ```
 
-Tagged releases are automated by `.github/workflows/release.yml`. See [docs/release.md](docs/release.md) before publishing artifacts.
+Tagged releases are automated by `.github/workflows/release.yml`. A separate manually dispatched `.github/workflows/release-candidate.yml` collects clean-checkout Windows/macOS/Linux build evidence before a public release decision. See [docs/release.md](docs/release.md) and [docs/release-evidence.md](docs/release-evidence.md) before publishing artifacts.
 
 ## Architecture overview
 
@@ -177,7 +181,7 @@ The frontend keeps comparison, Markdown export-option handling, Quick actions, r
 
 ## Report compatibility
 
-Application version **2.0.12** continues to emit report schema **v2**. App versioning and report-schema versioning are deliberately independent. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
+Application version **2.0.13** continues to emit report schema **v2**. App versioning and report-schema versioning are deliberately independent. TextLens can import schema-v1 JSON reports for comparison; metrics that did not exist in v1 are not presented as meaningful comparison deltas. Unknown future schema versions are rejected rather than guessed.
 
 Existing valid schema-v2 reports are the stable compatibility target for the TextLens 2.x line. The full compatibility rules and change requirements are documented in [docs/report-schema.md](docs/report-schema.md).
 
