@@ -18,25 +18,43 @@ npm run version:check
 
 The About dialog resolves the packaged application version at runtime through Tauri metadata instead of treating a copied UI literal as the release source of truth.
 
-Application version and report-schema version are independent. TextLens 2.0.12 continues to emit report schema v2. See `docs/report-schema.md` before changing report models or compatibility behavior.
+Application version and report-schema version are independent. TextLens 2.0.13 continues to emit report schema v2. See `docs/report-schema.md` before changing report models or compatibility behavior.
 
 ## Tag integrity
 
 Stable/release tags must exactly match the npm application version with a leading `v`.
 
 ```bash
-npm run release:tag-check -- v2.0.12
+npm run release:tag-check -- v2.0.13
 ```
 
 On GitHub Actions the script reads `GITHUB_REF_NAME`, so `.github/workflows/release.yml` rejects a mismatched tag before dependencies are installed or platform packaging starts.
 
 Do not move an existing release tag to a different commit.
 
+## Reproducible dependency gate
+
+A tagged release must not resolve a fresh dependency graph. Generate and review both lockfiles before release-candidate validation:
+
+- `package-lock.json`
+- `src-tauri/Cargo.lock`
+
+Never hand-author these files. Generate them with npm/Cargo in a registry-capable environment, review the dependency changes, and commit them.
+
+Then run:
+
+```bash
+npm run release:readiness
+```
+
+The tagged release workflow uses `npm ci` plus `cargo metadata --locked` after this dependency-free preflight. Missing, malformed, stale, or obviously conflicted lock state blocks packaging instead of silently producing an unreproducible draft release.
+
 ## Preparation
 
 1. Update changelog, roadmap, documentation, and `what_changed.md`.
 2. Generate/refresh dependency lockfiles in an environment with registry access and review the diff. Never hand-author lockfiles.
-3. Run the complete quality suite:
+3. Run `npm run release:readiness` and retain the printed lockfile fingerprints with the candidate review.
+4. Run the complete quality suite:
 
    ```bash
    npm run version:check
@@ -48,18 +66,19 @@ Do not move an existing release tag to a different commit.
    npm run build
    cd src-tauri
    cargo fmt --check
-   cargo clippy --all-targets --all-features -- -D warnings
-   cargo test --all-targets
+   cargo clippy --locked --all-targets --all-features -- -D warnings
+   cargo test --locked --all-targets
    ```
 
-4. Run the release-mode synthetic benchmark and record the result in the release notes or performance evidence.
-5. Build from a clean checkout on Windows, macOS, and Linux.
-6. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
-7. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
-8. Complete the manual accessibility checklist in `docs/accessibility.md`.
-9. Replace repository mock screenshots with real captures from the verified release candidate where possible.
-10. Run the tag check against the intended tag.
-11. Tag only the tested commit as `vX.Y.Z`.
+5. Run the release-mode synthetic benchmark and record the result in the release notes or performance evidence.
+6. Build from a clean checkout on Windows, macOS, and Linux.
+7. Confirm no secrets, private documents, full private paths, generated signing material, or personal fixture data exist in the diff.
+8. Confirm report/settings schema compatibility notes match the implementation and `docs/report-schema.md`.
+9. Complete the manual accessibility checklist in `docs/accessibility.md`.
+10. Replace repository mock screenshots with real captures from the verified release candidate where possible.
+11. Review all open release-relevant security/dependency advisories according to `SECURITY.md`.
+12. Run the tag check against the intended tag.
+13. Tag only the tested commit as `vX.Y.Z`.
 
 ## Data compatibility checks
 
@@ -76,9 +95,19 @@ Before tagging:
 - Confirm disabling recent-file metadata clears the local metadata store.
 - Confirm a blocked/unavailable WebView storage implementation does not leave a blank startup window; when the memory fallback is available, preferences must be clearly session-only.
 
-## Automation
+## Release-candidate automation
 
-Pushing `v*` triggers `.github/workflows/release.yml`, which first verifies that the tag equals `v` plus the application version, then builds on Windows, macOS, and Linux and creates a draft GitHub Release.
+Run `.github/workflows/release-candidate.yml` manually from the candidate branch after the reviewed lockfiles are committed. It audits clean GitHub-hosted Ubuntu, Windows, and macOS checkouts, runs frontend and Rust gates, attempts native bundles, records the Ubuntu release benchmark, and uploads temporary bundles plus build-evidence JSON.
+
+The workflow is evidence collection, not automatic release approval. Native installation, assistive-technology acceptance, screenshots, and signing/notarization remain manual evidence tasks.
+
+See `docs/release-evidence.md` for the evidence contract and interpretation rules.
+
+## Tagged release automation
+
+Pushing `v*` triggers `.github/workflows/release.yml`, which verifies the tag/version identity, release-document identity, and committed dependency locks before building on Windows, macOS, and Linux and creating a draft GitHub Release.
+
+The workflow installs frontend dependencies with `npm ci`, verifies Cargo manifests against the committed lockfile with `cargo metadata --locked`, and uploads machine-readable build evidence for every matrix attempt. Evidence is captured even when native packaging fails.
 
 The draft must remain unpublished until platform artifacts are manually installed and checked. A successful workflow is evidence that packaging completed, not evidence that every runtime behavior or accessibility path was manually verified.
 
@@ -126,9 +155,9 @@ For every supported platform artifact:
 
 ## Release notes
 
-Use `.github/RELEASE_TEMPLATE.md` as a checklist. Describe user-visible changes, privacy/security changes, schema compatibility, known limitations, verification commands, and platform-specific caveats. Do not claim a platform or quality gate was verified unless it was actually run.
+Use `.github/RELEASE_TEMPLATE.md` as a checklist. Describe user-visible changes, privacy/security changes, schema compatibility, known limitations, verification commands, open release-relevant advisories, and platform-specific caveats. Do not claim a platform or quality gate was verified unless it was actually run.
 
-For the 2.0.12 source milestone, `docs/releases/v2.0.12.md` records what is source-complete and which release-candidate checks still require external environments.
+For the 2.0.13 source milestone, `docs/releases/v2.0.13.md` records what is source-complete and which release-candidate checks still require external environments.
 
 ## Rollback
 
