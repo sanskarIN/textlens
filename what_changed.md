@@ -4,15 +4,16 @@
 
 Version **2.0.13** reproducible-release-evidence source milestone — 2026-08-24.
 
-This continuation prepares the next TextLens source version after 2.0.12. The focus is release reproducibility, cross-platform evidence collection, dependency-advisory visibility, and preventing a tagged binary build from silently resolving an unreviewed dependency graph.
+This continuation advances TextLens from the completed 2.0.12 source milestone to a 2.0.13 source milestone focused on reproducible dependency state, cross-platform release evidence, CI efficiency, and explicit dependency-advisory release gates.
 
-The source-side preparation described below is implemented on `release/v2.0.13-reproducible-evidence`. Stable binary release acceptance is deliberately separate and remains incomplete until real dependency lockfiles, native packages, manual platform acceptance, accessibility evidence, signing/notarization where applicable, and final artifact checksums exist.
+The source changes are implemented on `release/v2.0.13-reproducible-evidence` and proposed through PR #40. Stable binary release acceptance remains separate: do not describe package-manager, native installation, accessibility, signing/notarization, screenshot, security-advisory remediation, or final artifact checks as complete without real evidence.
 
 ## Repository state
 
 - Repository: `sanskarIN/textlens`
 - Default branch: `main`
 - Working branch: `release/v2.0.13-reproducible-evidence`
+- Pull request: `#40`
 - Visibility: public
 - License: MIT
 - Primary stack: Rust + Tauri 2 + TypeScript + Vite
@@ -21,220 +22,174 @@ The source-side preparation described below is implemented on `release/v2.0.13-r
 - Settings backup schema: `2`
 - Required visible credit: **Made by the Sanskar**
 
-Application version and report-schema version remain independent. TextLens 2.0.13 continues to emit report schema v2 and retains valid schema-v1/schema-v2 report import compatibility.
+Application version and report-schema version remain independent. TextLens 2.0.13 continues to emit report schema v2 and retains the documented valid schema-v1/schema-v2 import behavior.
 
-## Version 2.0.13 work completed in this continuation
+## 2.0.13 source work completed
 
 ### Reproducible dependency-lock preflight
 
-Added `scripts/check-release-readiness.mjs` and the npm command:
+Added `scripts/check-release-readiness.mjs` and:
 
 ```bash
 npm run release:readiness
 ```
 
-The dependency-free preflight requires both package-manager-generated release locks:
+The dependency-free preflight requires reviewed, package-manager-generated:
 
 - `package-lock.json`
 - `src-tauri/Cargo.lock`
 
-The preflight:
+It validates basic lock structure, rejects obvious merge-conflict markers, checks npm root-version alignment when available, and prints SHA-256 fingerprints for both dependency locks.
 
-- rejects a missing npm or Cargo lockfile;
-- validates the npm lockfile as JSON;
-- accepts supported npm lockfile format versions 2 and 3;
-- checks the npm root package version when that value is present;
-- requires a Cargo lockfile format-version declaration;
-- rejects obvious merge-conflict markers in either lockfile;
-- prints SHA-256 fingerprints for both dependency locks when the gate succeeds.
+The repository intentionally does not contain fabricated lockfiles. Until real npm/Cargo output is generated, reviewed, and committed, tagged binary packaging is designed to remain blocked.
 
-The repository still does not contain these lockfiles because this environment cannot truthfully generate and review them from the real npm/Cargo registries. They are intentionally not hand-authored. As a result, a tagged 2.0.13 binary build is expected to remain blocked until the real package-manager output is committed and reviewed.
+### Review-only Dependency Lock Candidate workflow
+
+Added `.github/workflows/dependency-lock-candidate.yml`.
+
+This manually dispatched workflow runs on a clean Ubuntu GitHub runner and:
+
+1. generates `package-lock.json` with npm using `--package-lock-only --ignore-scripts`;
+2. generates `src-tauri/Cargo.lock` with Cargo;
+3. validates both using `npm run release:readiness`;
+4. validates Cargo manifest/lock alignment with `cargo metadata --locked --format-version 1 --no-deps`;
+5. uploads the two files as a temporary seven-day artifact for human review.
+
+Repository permissions are read-only. The workflow deliberately does not auto-commit or push supply-chain changes.
 
 ### Tagged release workflow hardened
 
-`.github/workflows/release.yml` now performs release checks before native packaging:
+`.github/workflows/release.yml` now checks, in order:
 
-1. release tag/version validation;
-2. application/release-document version validation;
-3. dependency-lock readiness validation;
-4. `npm ci --no-audit --no-fund` from the committed npm lockfile;
-5. `cargo metadata --locked --format-version 1 --no-deps` from `src-tauri`.
+1. release tag/version identity;
+2. application/release-document version identity;
+3. dependency-lock readiness;
+4. `npm ci --no-audit --no-fund` from the committed npm lock;
+5. `cargo metadata --locked --format-version 1 --no-deps` from the committed Cargo lock;
+6. native Tauri packaging.
 
-The previous release workflow used `npm install`, which could resolve a fresh dependency graph during release packaging. Version 2.0.13 changes this to a reviewed-lock workflow.
-
-The Windows, macOS, and Linux tag matrix still creates a draft release rather than publishing immediately. It now also attempts to capture per-platform machine-readable build evidence after each packaging attempt.
+The previous tag workflow used `npm install`, which could resolve a fresh dependency graph during packaging. Version 2.0.13 prevents that release behavior.
 
 ### Machine-readable build evidence
 
-Added `scripts/write-build-evidence.mjs` and the npm command:
+Added `scripts/write-build-evidence.mjs` and:
 
 ```bash
 npm run release:evidence -- release-evidence/build.json
 ```
 
-Evidence schema version 1 records only an explicit build-metadata allowlist:
+Evidence schema version 1 records only an explicit allowlist:
 
-- TextLens application version;
+- application version;
 - capture timestamp;
 - CI build status supplied by the workflow;
-- GitHub commit/ref/repository/run identity when provided by GitHub Actions;
+- GitHub commit/ref/repository/run identity when GitHub Actions supplies it;
 - runner operating system and architecture;
-- Node, npm, rustc, and Cargo version/availability data;
-- presence, byte size, and SHA-256 digest of the npm and Cargo lockfiles.
+- Node/npm/rustc/Cargo version or availability information;
+- presence, size, and SHA-256 digest of the npm and Cargo lockfiles.
 
-The writer does not inspect analyzed documents, exported reports, TextLens settings, credentials, signing secrets, arbitrary environment variables, or local user data.
+It does not inspect analyzed documents, reports, TextLens settings, credentials, signing secrets, arbitrary environment variables, or user data.
 
-Generated `release-evidence/` output is excluded through `.gitignore`.
+Generated `release-evidence/` output is ignored by Git.
 
 ### Cross-platform Release Candidate Audit workflow
 
-Added `.github/workflows/release-candidate.yml` as a manually dispatched clean-checkout evidence workflow.
-
-It runs independently on:
+Added `.github/workflows/release-candidate.yml`, manually dispatched across:
 
 - Ubuntu 22.04;
 - GitHub-hosted Windows;
 - GitHub-hosted macOS.
 
-The workflow performs:
+It performs dependency/version gates, `npm ci`, Cargo locked validation, frontend type/lint/format/docs/test/build gates, Rust format/Clippy/tests with locked dependencies, native Tauri bundle attempts, per-platform build-evidence capture, and temporary artifact upload. Ubuntu additionally records the release-mode synthetic analyzer benchmark.
 
-- version/release-document validation;
-- dependency-lock readiness validation;
-- `npm ci`;
-- Cargo locked-manifest validation;
-- frontend TypeScript checks;
-- ESLint;
-- deterministic formatting check;
-- documentation-link check;
-- frontend tests;
-- frontend production build;
-- Rust formatting check;
-- Rust Clippy with warnings denied and `--locked`;
-- Rust tests with `--locked`;
-- native Tauri bundle build;
-- machine-readable evidence capture;
-- temporary CI artifact upload containing evidence and produced native bundles.
+The workflow is evidence collection, not automatic release approval. Native package installation, assistive-technology acceptance, screenshots, signing/notarization, and final checksum verification remain manual evidence tasks.
 
-Ubuntu also records the existing release-mode synthetic analyzer benchmark.
+### CI queue/concurrency hardening
 
-This workflow is an evidence collector. It does not turn successful automation into an unsupported claim that native installation, accessibility, screenshots, signing, notarization, or runtime acceptance have been manually verified.
+During PR preparation, granular commits exposed that CI, Security, and Dependency Review could accumulate redundant runs for stale revisions of the same pull request.
 
-### Release evidence contract documented
+Added GitHub Actions concurrency groups with `cancel-in-progress: true` to:
 
-Added `docs/release-evidence.md` documenting:
+- `.github/workflows/ci.yml`;
+- `.github/workflows/security.yml`;
+- `.github/workflows/dependency-review.yml`.
 
-- the lockfile preflight contract;
-- why lockfiles must come from npm/Cargo rather than being hand-authored;
-- the Release Candidate Audit workflow;
-- the build-evidence JSON boundary;
-- the tagged release evidence behavior;
-- manual platform acceptance that automation cannot replace;
-- the dependency-advisory release gate.
+This keeps the newest PR/ref revision authoritative and avoids wasting runner capacity on superseded revisions.
 
-### Security policy corrected and strengthened
+### Security policy corrected and advisory handling documented
 
-`SECURITY.md` previously described the obsolete `0.1.x` line as the actively supported version. It now reflects the current project state:
+`SECURITY.md` previously described the old 0.1.x development line as current. It now states:
 
-- `2.0.x` — supported;
-- `0.1.x` — best effort only;
-- older lines — unsupported.
+- 2.0.x — supported;
+- 0.1.x — best effort only;
+- older — unsupported.
 
 Dependency advisory triage now requires:
 
-- confirmation of the affected dependency path from a real reviewed Cargo lockfile;
-- vulnerability, memory-safety, and unsoundness advisories to remain release-review blockers until patched or supported by a documented technical non-applicability assessment;
-- unmaintained-package advisories to receive dependency-path/upstream migration review rather than being automatically described as exploitable vulnerabilities;
-- advisories not to be ignored solely to make automation green;
-- supported upstream dependency updates to be preferred over unsafe forced-version workarounds;
-- unresolved release-relevant advisories to remain visible in release notes.
+- real dependency-path confirmation from a reviewed Cargo lockfile;
+- vulnerability/memory-safety/unsoundness findings to remain release-review blockers until patched or supported by a documented technical non-applicability assessment;
+- unmaintained-package advisories to receive dependency-path/upstream migration review;
+- advisories not to be suppressed solely to obtain a green workflow;
+- supported upstream fixes to be preferred over unsafe forced transitive versions;
+- unresolved release-relevant findings to remain visible in release documentation.
 
-### Current Rust dependency advisories retained as open work
+### Current RustSec issues are not hidden or falsely closed
 
-The scheduled Rust audit opened public RustSec tracking issues on 2026-08-24. These include the `glib` unsoundness advisory `RUSTSEC-2024-0429` and several unmaintained GTK3/UNIC ecosystem dependency notices.
+The scheduled Rust dependency audit opened multiple public RustSec issues on 2026-08-24, including `RUSTSEC-2024-0429` for an affected `glib` version and several unmaintained GTK3/UNIC ecosystem packages.
 
-Version 2.0.13 does **not** claim that these transitive dependency findings are fixed. The real Cargo lockfile must first be generated and audited so the exact dependency paths and available supported upstream migrations can be reviewed without guessing.
+This milestone does **not** claim those transitive findings are fixed. The exact locked dependency graph and supported upstream remediation must be established first. No advisory was suppressed and no incompatible transitive version was forced simply to make automation green.
 
-No advisory was suppressed and no incompatible transitive version was forced merely to obtain a green status.
-
-### Release guide and checklist expanded
-
-`docs/release.md` now documents:
-
-- the 2.0.13 tag identity;
-- the required dependency-lock gate;
-- `npm ci` and Cargo `--locked` behavior;
-- the Release Candidate Audit process;
-- release evidence interpretation;
-- dependency advisory review before a public binary release;
-- manual acceptance and checksum requirements.
-
-`.github/RELEASE_TEMPLATE.md` now explicitly records:
-
-- reviewed npm/Cargo lockfiles;
-- dependency-lock fingerprints;
-- `npm ci` success;
-- Cargo locked-manifest validation;
-- Release Candidate Audit results;
-- per-platform evidence artifacts;
-- open dependency advisories;
-- native accessibility/scaling acceptance;
-- signing/notarization status;
-- real screenshots;
-- final checksum manifest evidence.
-
-### Roadmap synchronized
-
-`ROADMAP.md` now contains a dedicated **2.0.13 reproducible release evidence milestone**.
-
-Completed source-owned work is checked separately from external evidence that still needs real platform/package-manager execution.
-
-### Application version synchronized
-
-Version metadata is now aligned at `2.0.13` in:
-
-- `package.json`;
-- `src-tauri/Cargo.toml`;
-- `src-tauri/tauri.conf.json`.
-
-The runtime About UI continues to use packaged Tauri version metadata.
-
-### Release documentation synchronized
+### Documentation/release metadata synchronized
 
 Added:
 
-```text
-docs/releases/v2.0.13.md
-```
+- `docs/release-evidence.md`
+- `docs/releases/v2.0.13.md`
 
 Updated:
 
-- `README.md` — current source version, release-readiness/evidence commands, Release Candidate Audit documentation link, and report-schema statement;
-- `CHANGELOG.md` — `[2.0.13] - 2026-08-24` release section and reset `[Unreleased]` section;
-- `ROADMAP.md` — new 2.0.13 source/external gate split;
-- `SECURITY.md` — current supported version and advisory policy;
-- `docs/release.md` — reproducible release procedure;
-- `.github/RELEASE_TEMPLATE.md` — expanded acceptance/evidence checklist;
-- this handoff.
+- `README.md`
+- `CHANGELOG.md`
+- `ROADMAP.md`
+- `SECURITY.md`
+- `docs/release.md`
+- `.github/RELEASE_TEMPLATE.md`
+- `what_changed.md`
 
-## Source-side verification actually performed
+The release docs now distinguish automated build evidence from real manual acceptance and explicitly track reviewed dependency locks, lock fingerprints, security advisories, platform evidence, accessibility, screenshots, signing/notarization, and final checksums.
 
-The following work was actually performed during this continuation:
+### Version identity synchronized
 
-- inspected the connected GitHub repository, current 2.0.12 source state, latest commits, roadmap, release guide, release automation, security policy, package metadata, and current handoff;
-- inspected current open GitHub issues and identified the newly opened RustSec dependency findings;
-- confirmed the repository does not contain `package-lock.json` or `src-tauri/Cargo.lock` and did not fabricate either file;
-- confirmed the previous tag workflow used `npm install` and lacked a committed-lock release gate;
-- exercised the new release-readiness algorithm locally with a missing-lock fixture and observed the intended failure;
-- exercised the release-readiness algorithm locally with structurally valid synthetic npm/Cargo lock fixtures and observed success plus SHA-256 fingerprints;
-- exercised the build-evidence writer locally with synthetic lockfiles and verified evidence schema version 1 plus 64-character SHA-256 dependency-lock digests;
-- synchronized npm/Cargo/Tauri application metadata to 2.0.13;
-- synchronized README, changelog, roadmap, release guide, security policy, release template, version-specific release notes, release-evidence documentation, and this handoff.
+Application version is `2.0.13` in:
 
-The local container could not clone GitHub because external DNS/network resolution is unavailable there. GitHub repository reads/writes were therefore performed through the connected GitHub integration rather than pretending a local checkout was available.
+- `package.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/tauri.conf.json`
 
-## Verification intentionally not claimed yet
+README identifies the current source version as 2.0.13, CHANGELOG contains the 2.0.13 release section, and `docs/releases/v2.0.13.md` exists, satisfying the intended inputs of the existing dependency-free version synchronization gate.
 
-The following are not complete in this environment:
+## Verification actually performed in this continuation
+
+Actually performed:
+
+- inspected the connected GitHub repository at the merged 2.0.12 baseline;
+- inspected current version metadata, roadmap, release workflow, security workflow, release guide, and handoff;
+- inspected current open RustSec tracking issues;
+- confirmed `package-lock.json` and `src-tauri/Cargo.lock` are absent rather than pretending reproducibility already exists;
+- exercised the new dependency-lock preflight locally against a missing-lock case and observed the intended failure;
+- exercised the preflight locally against structurally valid synthetic npm/Cargo lock fixtures and observed success plus SHA-256 fingerprints;
+- exercised the build-evidence writer locally against synthetic lockfiles and verified schema version 1 plus 64-character SHA-256 dependency-lock digests;
+- synchronized npm, Cargo, Tauri, README, changelog, roadmap, release notes, release guide, release evidence documentation, security policy, and release checklist;
+- created PR #40 with granular commits rather than collapsing the work into a single source change;
+- confirmed GitHub reports PR #40 as mergeable;
+- observed GitHub CI, Security, and Dependency Review runs being queued for the PR revisions;
+- added workflow concurrency so superseded revisions are cancelled instead of continuing to consume runners.
+
+The local container could not clone GitHub because external DNS/network resolution was unavailable there. Repository reads/writes were therefore performed through the connected GitHub integration. No local-checkout or registry-dependent success claim is fabricated.
+
+## Checks not yet truthfully completed
+
+The real repository still needs package-manager-generated locks before the release-specific locked suite can pass:
 
 ```bash
 npm run release:readiness
@@ -254,35 +209,33 @@ cargo test --locked --all-targets
 cargo run --locked --release --example benchmark -- 16 5
 ```
 
-The dependency-lock readiness command is expected to fail against the real repository until the missing real lockfiles are generated and committed. That is now intentional release behavior rather than an undocumented gap.
+The ordinary PR workflows are separate from the release-specific lock gate. Their actual GitHub runner outcome must be recorded when available; queued is not equivalent to passed.
 
-## Remaining release work after the 2.0.13 source milestone
+## Remaining work after source preparation
 
-These are evidence, dependency-resolution, distribution, or repository-administration tasks rather than missing core TextLens product source features:
-
-1. Generate `package-lock.json` with npm in a registry-capable environment and review the resulting dependency graph.
-2. Generate `src-tauri/Cargo.lock` with Cargo in a Rust/registry-capable environment and review the resulting dependency graph.
-3. Commit both reviewed lockfiles and run `npm run release:readiness` against the real repository state.
-4. Re-run Rust dependency/security auditing against the real Cargo lockfile and identify the exact dependency path/status of each current RustSec issue.
-5. Resolve or explicitly assess all release-relevant vulnerability/unsoundness advisories using supported upstream fixes; do not suppress them simply to pass CI.
-6. Run the complete frontend and Rust quality suite from the reviewed locked dependency graph.
-7. Run the manual Release Candidate Audit workflow successfully on Ubuntu, Windows, and macOS.
-8. Retain and review the three platform build-evidence files and Ubuntu benchmark evidence.
-9. Install and manually exercise each generated Windows, macOS, and Linux candidate package.
+1. Run the Dependency Lock Candidate workflow or equivalent real npm/Cargo commands in a registry-capable environment.
+2. Review the generated `package-lock.json` and `src-tauri/Cargo.lock` dependency changes before commit.
+3. Commit reviewed locks and pass `npm run release:readiness` against the real repository state.
+4. Re-run Rust dependency/security auditing against the committed Cargo lock and identify the exact path/status of each release-relevant RustSec issue.
+5. Resolve or explicitly assess vulnerability/unsoundness blockers using supported upstream fixes; do not suppress them for CI cosmetics.
+6. Run the complete frontend/Rust suite from the reviewed locked graph.
+7. Run the Release Candidate Audit successfully on Ubuntu, Windows, and macOS.
+8. Retain/review three platform evidence JSON files and benchmark evidence.
+9. Install and manually exercise each Windows/macOS/Linux candidate package.
 10. Complete native keyboard, screen-reader, scaling, and reduced-motion acceptance.
-11. Capture real screenshots from the verified release candidates.
-12. Configure Windows code signing and Apple Developer ID/notarization where credentials are available.
-13. Apply repository-admin branch protection/rules per the repository governance documentation.
-14. Collect final public release artifacts and generate/verify `SHA256SUMS.txt`.
-15. Re-run final release-candidate acceptance before publishing a stable `v2.0.13` binary release.
+11. Capture real screenshots from verified packages.
+12. Configure Windows signing and Apple Developer ID/notarization where credentials are available.
+13. Apply repository-admin branch protection/rules per repository governance documentation.
+14. Collect final public artifacts and generate/verify `SHA256SUMS.txt`.
+15. Re-run final release acceptance before publishing a stable `v2.0.13` binary release.
 
 ## Definition-of-done status
 
-**The source-owned TextLens 2.0.13 reproducible-release-evidence milestone is prepared on its release branch.**
+**The TextLens 2.0.13 source-owned reproducible-release-evidence milestone is prepared in PR #40.**
 
-**A stable TextLens 2.0.13 binary release is not yet proven or ready to be described as fully verified.** The new source controls deliberately make the missing dependency-lock and native-evidence work visible and enforceable rather than hiding it.
+**Stable TextLens 2.0.13 binary release evidence is not complete.** The new source controls make the missing dependency, advisory, native-platform, accessibility, signing, screenshot, and checksum work explicit and enforceable instead of hiding it.
 
-The next repository step is branch-level CI/PR verification. Any observed CI result must be recorded as evidence; a failing security/advisory job must not be silently bypassed or rewritten as success.
+PR-level CI must be treated according to its actual final result. A queued or failing security/advisory job must never be rewritten as a passing result.
 
 ---
 
