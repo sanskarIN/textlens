@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: 22
       - run: npm run version:check
+      - run: npm run release:tooling:test
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - run: npm run lint
