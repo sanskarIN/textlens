@@ -1,0 +1,44 @@
+name: Dependency Lock Candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate reviewable dependency locks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate npm lockfile without lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Generate Cargo lockfile
+        working-directory: src-tauri
+        run: cargo generate-lockfile
+
+      - name: Validate generated release locks
+        run: npm run release:readiness
+
+      - name: Verify Cargo lockfile matches manifests
+        working-directory: src-tauri
+        run: cargo metadata --locked --format-version 1 --no-deps
+
+      - name: Upload lockfile candidate for human review
+        uses: actions/upload-artifact@v4
+        with:
+          name: textlens-dependency-lock-candidate
+          path: |
+            package-lock.json
+            src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 7
