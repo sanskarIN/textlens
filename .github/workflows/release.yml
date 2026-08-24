@@ -35,6 +35,9 @@ jobs:
       - name: Verify version metadata and release documentation
         run: npm run version:check
 
+      - name: Verify reproducible dependency locks
+        run: npm run release:readiness
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install Linux prerequisites
@@ -43,7 +46,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - run: npm install --no-audit --no-fund
+      - name: Install frontend dependencies from lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify Cargo lockfile matches manifests
+        working-directory: src-tauri
+        run: cargo metadata --locked --format-version 1 --no-deps
 
       - uses: tauri-apps/tauri-action@v1
         env:
@@ -55,3 +63,17 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Capture release build evidence
+        if: always()
+        env:
+          TEXTLENS_BUILD_STATUS: ${{ job.status }}
+        run: node scripts/write-build-evidence.mjs release-evidence/${{ matrix.platform }}.json
+
+      - name: Upload release build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ matrix.platform }}
+          path: release-evidence/${{ matrix.platform }}.json
+          if-no-files-found: error
