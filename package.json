@@ -23,6 +23,7 @@
     "docs:check": "node scripts/check-doc-links.mjs",
     "version:check": "node scripts/check-version-sync.mjs",
     "release:tag-check": "node scripts/check-release-tag.mjs",
+    "release:readiness": "node scripts/check-release-readiness.mjs",
     "release:checksums": "node scripts/write-release-checksums.mjs",
     "release:checksums:verify": "node scripts/verify-release-checksums.mjs",
     "test": "vitest run",
