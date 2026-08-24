@@ -23,12 +23,17 @@
 - Confirm imported reports/settings remain size-limited and validated.
 - Confirm recent-file metadata remains opt-in and path-free if the feature is present.
 - Confirm update navigation does not transmit document content or silently poll unless the release explicitly changes that policy.
+- Review every open release-relevant dependency/security advisory according to `SECURITY.md`; record unresolved items below.
 - Never include credentials, private user data, full private paths, or sensitive diagnostic content.
 
 ## Verification
 
 - [ ] `npm run version:check` passes.
 - [ ] `npm run release:tag-check -- vX.Y.Z` passes for the intended tag.
+- [ ] Reviewed `package-lock.json` and `src-tauri/Cargo.lock` are committed from package-manager output.
+- [ ] `npm run release:readiness` passes and lockfile SHA-256 fingerprints are retained with candidate evidence.
+- [ ] `npm ci` succeeds from the committed npm lockfile.
+- [ ] `cargo metadata --locked --format-version 1 --no-deps` succeeds from `src-tauri`.
 - [ ] Frontend type-check passes.
 - [ ] Frontend lint passes.
 - [ ] Frontend deterministic format check passes.
@@ -36,10 +41,12 @@
 - [ ] Frontend tests pass.
 - [ ] Frontend production build passes.
 - [ ] Rust format check passes.
-- [ ] Rust Clippy passes with warnings denied.
-- [ ] Rust tests pass for all targets, including the stable report-schema guard.
+- [ ] Rust Clippy passes with warnings denied and `--locked`.
+- [ ] Rust tests pass for all targets with `--locked`, including the stable report-schema guard.
 - [ ] Release-mode benchmark recorded.
-- [ ] Dependency/security checks pass.
+- [ ] Dependency/security checks reviewed.
+- [ ] Manual `Release Candidate Audit` workflow completed on Ubuntu, Windows, and macOS.
+- [ ] Build-evidence JSON retained for each release-candidate platform.
 - [ ] Current report export/import/compare round trip checked.
 - [ ] Supported legacy report import checked.
 - [ ] Future report schema rejection checked.
@@ -54,14 +61,25 @@
 - [ ] Windows package installed and checked.
 - [ ] macOS package installed and checked.
 - [ ] Linux package installed and checked.
+- [ ] Native screen-reader/scaling acceptance completed on intended public platforms.
 - [ ] Real release-candidate screenshots captured where applicable.
+- [ ] Signing/notarization status recorded for applicable platforms.
 - [ ] Final artifacts collected and `SHA256SUMS.txt` generated/verified.
 - [ ] `CHANGELOG.md`, `ROADMAP.md`, and `what_changed.md` updated.
-- [ ] Dependency lockfiles refreshed and committed from package-manager output.
 
-## Known limitations
+## Open advisories / known limitations
 
-- Record unverified platforms, signing/notarization gaps, accessibility gaps, or toolchain limitations explicitly.
+- Record unresolved dependency advisories, unverified platforms, signing/notarization gaps, accessibility gaps, or toolchain limitations explicitly.
+- Do not mark an advisory resolved unless the shipped dependency graph or documented technical assessment supports that claim.
+
+## Evidence
+
+- Release Candidate Audit run:
+- Windows evidence artifact:
+- macOS evidence artifact:
+- Linux evidence artifact:
+- Benchmark evidence:
+- Final checksum manifest:
 
 ## Support
 
