@@ -2,12 +2,13 @@
 
 ## Supported versions
 
-Until TextLens reaches 1.0, security fixes are applied to the latest development/release line.
+Security fixes are applied to the current 2.0.x source/release line. Older development lines receive only best-effort fixes when practical.
 
 | Version | Supported |
 |---|---|
-| 0.1.x | Yes |
-| Older | Best effort only |
+| 2.0.x | Yes |
+| 0.1.x | Best effort only |
+| Older | No |
 
 ## Reporting a vulnerability
 
@@ -55,4 +56,15 @@ The local operating-system user controls selected input and export paths. TextLe
 
 ## Dependencies
 
-CI includes static and dependency checks, and Dependabot is configured for npm, Cargo, and GitHub Actions updates.
+CI includes static and dependency checks, and Dependabot is configured for npm, Cargo, and GitHub Actions updates. The scheduled Rust audit may open public tracking issues for advisories that are already publicly disclosed in the RustSec database; those automated issues are distinct from privately reported, not-yet-public vulnerabilities.
+
+Dependency advisory triage follows these rules:
+
+1. Confirm the affected crate/version and dependency path from a generated, reviewed Cargo lockfile.
+2. Treat vulnerability, memory-safety, or unsoundness advisories as release-review blockers until a patched dependency path is available or a documented technical assessment shows the affected code is not reachable in the shipped target.
+3. Review unmaintained-package advisories for upstream migration options and transitive dependency ownership; do not automatically label them as exploitable vulnerabilities.
+4. Do not silence or ignore an advisory solely to make CI green.
+5. Prefer an upstream-supported dependency update over local patching or forced incompatible versions.
+6. Record unresolved release-relevant advisories and their status in the version-specific release notes.
+
+The release process additionally requires reviewed npm and Cargo lockfiles before a tag can package binaries. See `docs/release-evidence.md`.
