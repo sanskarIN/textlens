@@ -21,6 +21,20 @@ Never hand-author either lockfile. Generate them with npm and Cargo in a registr
 
 The tagged release workflow additionally uses `npm ci` and `cargo metadata --locked` so a release cannot silently proceed from an unlocked dependency graph.
 
+## Dependency Lock Candidate workflow
+
+When a local environment cannot reach both registries/toolchains, `.github/workflows/dependency-lock-candidate.yml` can be dispatched manually to generate a review candidate on a clean Ubuntu runner.
+
+It:
+
+1. generates `package-lock.json` with npm using `--package-lock-only --ignore-scripts`;
+2. generates `src-tauri/Cargo.lock` with Cargo;
+3. runs `npm run release:readiness` against the generated files;
+4. runs `cargo metadata --locked --format-version 1 --no-deps`;
+5. uploads both lockfiles as a temporary seven-day artifact.
+
+The workflow has read-only repository permissions and intentionally does **not** commit, push, or open a pull request. Dependency-lock changes are supply-chain changes and must be reviewed before they enter source control. After review, commit the package-manager output normally and let the ordinary CI/security workflows assess the resulting graph.
+
 ## Release Candidate Audit workflow
 
 `.github/workflows/release-candidate.yml` is a manually dispatched clean-checkout audit for:
