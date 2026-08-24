@@ -13,6 +13,7 @@ No changes have been added after the 2.0.13 source milestone yet.
 - Dependency-free `release:readiness` preflight requiring reviewed npm and Cargo lockfiles before tagged native packaging.
 - SHA-256 lockfile fingerprint output for release-candidate evidence.
 - Machine-readable release build evidence containing allowlisted runner, repository, toolchain, build-status, and dependency-lock metadata.
+- Review-only Dependency Lock Candidate workflow that generates npm/Cargo lockfiles on a clean registry-capable runner, validates them, and uploads them without repository write permission.
 - Manually dispatched three-platform Release Candidate Audit workflow for clean Ubuntu, Windows, and macOS quality/bundle evidence.
 - Ubuntu release-mode benchmark capture in the Release Candidate Audit workflow.
 - `docs/release-evidence.md` defining what automated release evidence proves and which release claims still require manual verification.
@@ -24,6 +25,7 @@ No changes have been added after the 2.0.13 source milestone yet.
 - Tagged release frontend installation now uses `npm ci` rather than resolving a fresh dependency graph with `npm install`.
 - Tagged releases verify Cargo manifest/lock alignment with `cargo metadata --locked` before Tauri packaging.
 - Tagged release matrix jobs upload build-evidence JSON after packaging attempts, including failed attempts when the evidence writer can run.
+- CI, Security, and Dependency Review workflows now cancel superseded runs for the same pull request/ref instead of consuming runners on stale revisions.
 - Release checklist now records reviewed dependency locks, lock fingerprints, Release Candidate Audit runs, per-platform evidence, open advisories, native accessibility, signing/notarization, screenshots, and final checksums.
 - `SECURITY.md` now identifies 2.0.x as the current supported line instead of the obsolete 0.1.x-only statement.
 - Report schema remains v2; application version 2.0.13 does not change report-schema semantics or legacy schema-v1 import compatibility.
@@ -31,6 +33,7 @@ No changes have been added after the 2.0.13 source milestone yet.
 ### Security
 
 - Tagged binary packaging is intentionally blocked while reviewed `package-lock.json` and `src-tauri/Cargo.lock` files are absent or malformed.
+- The lock-candidate workflow is read-only and never auto-commits generated dependency changes, preserving human supply-chain review.
 - Release guidance now requires unresolved release-relevant RustSec advisories to remain visible until the locked dependency path and upstream remediation are understood.
 - Vulnerability, memory-safety, and unsoundness advisories are treated as release-review blockers unless patched or supported by a documented technical non-applicability assessment.
 - Unmaintained-package advisories require dependency-path and upstream migration review and must not be suppressed merely to make automation green.
