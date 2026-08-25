@@ -38,7 +38,7 @@ jobs:
       - name: Verify reproducible dependency locks
         run: npm run release:readiness
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.97.1
 
       - name: Install Linux prerequisites
         if: matrix.platform == 'ubuntu-22.04'
