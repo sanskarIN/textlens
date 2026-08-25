@@ -28,8 +28,8 @@
     "release:tooling:test": "node --test scripts/release-tooling.test.mjs",
     "release:checksums": "node scripts/write-release-checksums.mjs",
     "release:checksums:verify": "node scripts/verify-release-checksums.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run src",
+    "test:watch": "vitest src",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
