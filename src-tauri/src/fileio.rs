@@ -54,14 +54,13 @@ pub fn analyze_path(path: &Path, options: AnalysisOptions) -> Result<AnalysisRep
     };
 
     if file_size > streaming_threshold_bytes()
-        && matches!(encoding, DetectedEncoding::Utf8 | DetectedEncoding::Windows1252)
-    {
-        let (mut report, had_errors) = analyze_streaming(
-            path,
-            options,
+        && matches!(
             encoding,
-            source(AnalysisMode::Streaming),
-        )?;
+            DetectedEncoding::Utf8 | DetectedEncoding::Windows1252
+        )
+    {
+        let (mut report, had_errors) =
+            analyze_streaming(path, options, encoding, source(AnalysisMode::Streaming))?;
         report.encoding = Some(EncodingInfo {
             name: encoding_name(encoding).into(),
             bom_detected,
@@ -101,7 +100,9 @@ fn analyze_streaming(
 
     loop {
         raw.clear();
-        let read = reader.read_until(b'\n', &mut raw).map_err(AppError::ReadFile)?;
+        let read = reader
+            .read_until(b'\n', &mut raw)
+            .map_err(AppError::ReadFile)?;
         if read == 0 {
             break;
         }
@@ -280,18 +281,12 @@ mod tests {
             detect_encoding(&[0xFF, 0xFE, b'a', 0]).0,
             DetectedEncoding::Utf16Le
         );
-        assert_eq!(
-            detect_encoding("café".as_bytes()).0,
-            DetectedEncoding::Utf8
-        );
+        assert_eq!(detect_encoding("café".as_bytes()).0, DetectedEncoding::Utf8);
     }
 
     #[test]
     fn decodes_utf16_le() {
-        let (text, errors) = decode_all(
-            &[0xFF, 0xFE, b'H', 0, b'i', 0],
-            DetectedEncoding::Utf16Le,
-        );
+        let (text, errors) = decode_all(&[0xFF, 0xFE, b'H', 0, b'i', 0], DetectedEncoding::Utf16Le);
         assert_eq!(text, "Hi");
         assert!(!errors);
     }
