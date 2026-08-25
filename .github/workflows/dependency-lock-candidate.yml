@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.97.1
 
       - name: Generate npm lockfile without lifecycle scripts
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
