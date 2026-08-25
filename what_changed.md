@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-Version **2.0.13** reproducible-release-evidence source milestone — 2026-08-24.
+Version **2.0.13** reproducible-release-evidence source milestone — updated 2026-08-25.
 
-This continuation advances TextLens from the completed 2.0.12 source milestone to 2.0.13 with release reproducibility, cross-platform evidence collection, CI efficiency, dependency-advisory visibility, and regression-tested release tooling.
+This continuation advances TextLens from the completed 2.0.12 source milestone to 2.0.13 with release reproducibility, cross-platform evidence collection, CI efficiency, dependency-advisory visibility, regression-tested release tooling, deterministic Rust formatting/toolchain behavior, and current GitHub Actions runtimes.
 
 The source work is implemented on `release/v2.0.13-reproducible-evidence` and proposed through PR #40. Stable binary release acceptance remains separate. Do not describe package-manager, native installation, accessibility, signing/notarization, screenshot, security-advisory remediation, or final artifact verification as complete without real evidence.
 
@@ -20,6 +20,7 @@ The source work is implemented on `release/v2.0.13-reproducible-evidence` and pr
 - Application version: `2.0.13`
 - Report schema: `2`
 - Settings backup schema: `2`
+- Release Rust toolchain: `1.97.1`
 - Commit identity observed on GitHub: `Sanskar <sanskarin@outlook.in>`
 - Required visible credit: **Made by the Sanskar**
 
@@ -142,7 +143,35 @@ Granular PR commits exposed redundant queued runs for stale revisions. Added `ca
 - `.github/workflows/security.yml`
 - `.github/workflows/dependency-review.yml`
 
-GitHub subsequently reported the superseded previous revision's CI, Security, and Dependency Review runs as `cancelled`, confirming the new concurrency behavior is active.
+GitHub subsequently reported superseded previous revisions as `cancelled`, confirming the concurrency behavior is active.
+
+### PR CI repair and deterministic toolchain stabilization
+
+Real PR runs exposed several release-engineering defects that were fixed rather than bypassed:
+
+- Vite 7 rejected the stale `@types/node@22.0.0` peer range. The project now uses published `@types/node@22.20.1`.
+- `typescript@5.7.0` was not a published stable package. The project now pins the published 5.7 patch line at `5.7.3`.
+- Vitest was discovering the Node-native `scripts/release-tooling.test.mjs` file. Frontend test commands are now scoped to `src`, while release-tooling regressions remain explicitly executed through `npm run release:tooling:test`.
+- Added root `rust-toolchain.toml` pinning Rust `1.97.1` with `rustfmt` and `clippy`.
+- CI, security audit, dependency-lock generation, release-candidate audit, and tagged release workflows now use the same Rust 1.97.1 toolchain policy.
+- All Rust files reported by the pinned formatter were updated to its exact formatting output without intentional logic changes.
+
+A subsequent real GitHub CI revision confirmed the entire frontend job passes and `cargo fmt --check` passes with the pinned toolchain. Clippy/Rust-test status must still be read from the final current PR head rather than inferred from an earlier superseded revision.
+
+### GitHub Actions runtime modernization
+
+GitHub runner logs exposed Node-20 action-runtime deprecation warnings from `actions/checkout@v4` and `actions/setup-node@v4`.
+
+The current workflows now use `actions/checkout@v7` and, where Node setup is required, `actions/setup-node@v7` across:
+
+- ordinary CI;
+- Security;
+- Dependency Review;
+- Dependency Lock Candidate;
+- Release Candidate Audit;
+- tagged Release.
+
+`package-manager-cache: false` is explicit on setup-node v7 steps so release-sensitive workflows do not acquire implicit npm dependency caching behavior. Existing action-specific majors such as CodeQL, dependency review, Rust cache, upload-artifact, RustSec audit, and Tauri action were not changed merely for version-number uniformity.
 
 ### Security policy corrected and advisory handling documented
 
@@ -199,8 +228,13 @@ Actually performed in this continuation:
 - synchronized npm/Cargo/Tauri application identity to 2.0.13;
 - synchronized release/security/documentation metadata;
 - created PR #40 with granular commits and confirmed GitHub reports it mergeable;
-- observed real GitHub CI/Security/Dependency Review runs queued for the final PR revisions;
-- confirmed concurrency changes cancel superseded revisions rather than wasting runners;
+- observed a real GitHub install failure from the stale Vite/Node type peer combination and corrected the dependency pin;
+- observed a real GitHub install failure from the unpublished TypeScript 5.7.0 pin and corrected it to 5.7.3;
+- observed a later real frontend run pass version sync, release-tooling tests, npm install, typecheck, lint, formatting, documentation checks, application tests, and production build;
+- observed that same revision pass pinned `cargo fmt --check` after formatter repairs;
+- observed real CodeQL and Dependency Review success on the repaired PR revisions;
+- verified the workflow concurrency controls cancel superseded PR revisions rather than wasting runners;
+- migrated checkout/setup-node workflow usage to current v7 runtime actions after runner deprecation warnings exposed the older action runtime;
 - statically reviewed the PR patches for the new release scripts and major release workflows.
 
 The local container could not clone GitHub because external DNS/network resolution was unavailable. Repository reads/writes were performed through the connected GitHub integration. No unavailable local-checkout, registry, Cargo, or native-platform result is represented as completed.
@@ -227,33 +261,34 @@ cargo test --locked --all-targets
 cargo run --locked --release --example benchmark -- 16 5
 ```
 
-The ordinary PR workflows are separate. Their final GitHub runner outcome must be recorded according to the actual result; `queued` is not equivalent to `passed`.
+Ordinary PR CI is separate from the locked release suite. The latest workflow-only/documentation commits necessarily start fresh PR runs; their final GitHub runner outcome must be recorded according to the actual result. `queued` or `in_progress` is not equivalent to `passed`.
 
 ## Remaining work after 2.0.13 source preparation
 
-1. Run the Dependency Lock Candidate workflow or equivalent npm/Cargo commands in a registry-capable environment.
-2. Review `package-lock.json` and `src-tauri/Cargo.lock` before commit.
-3. Commit reviewed locks and pass `npm run release:readiness` against the real repository state.
-4. Re-run Rust dependency/security auditing against the committed Cargo lock and identify every release-relevant advisory path.
-5. Resolve or explicitly assess vulnerability/unsoundness blockers using supported upstream fixes; never suppress them for CI cosmetics.
-6. Run the complete frontend/Rust suite from the reviewed locked graph.
-7. Run the Release Candidate Audit successfully on Ubuntu, Windows, and macOS.
-8. Retain/review platform evidence JSON and benchmark evidence.
-9. Install and manually exercise every candidate package.
-10. Complete native keyboard, screen-reader, scaling, and reduced-motion acceptance.
-11. Capture real screenshots from verified packages.
-12. Configure Windows signing and Apple Developer ID/notarization where credentials are available.
-13. Apply repository-admin branch protection/rules per governance documentation.
-14. Collect final public artifacts and generate/verify `SHA256SUMS.txt`.
-15. Re-run final release acceptance before publishing stable `v2.0.13` binaries.
+1. Require the final PR #40 head to pass ordinary CI, Security, and Dependency Review after the workflow-runtime modernization.
+2. Run the Dependency Lock Candidate workflow or equivalent npm/Cargo commands in a registry-capable environment.
+3. Review `package-lock.json` and `src-tauri/Cargo.lock` before commit.
+4. Commit reviewed locks and pass `npm run release:readiness` against the real repository state.
+5. Re-run Rust dependency/security auditing against the committed Cargo lock and identify every release-relevant advisory path.
+6. Resolve or explicitly assess vulnerability/unsoundness blockers using supported upstream fixes; never suppress them for CI cosmetics.
+7. Run the complete frontend/Rust suite from the reviewed locked graph.
+8. Run the Release Candidate Audit successfully on Ubuntu, Windows, and macOS.
+9. Retain/review platform evidence JSON and benchmark evidence.
+10. Install and manually exercise every candidate package.
+11. Complete native keyboard, screen-reader, scaling, and reduced-motion acceptance.
+12. Capture real screenshots from verified packages.
+13. Configure Windows signing and Apple Developer ID/notarization where credentials are available.
+14. Apply repository-admin branch protection/rules per governance documentation.
+15. Collect final public artifacts and generate/verify `SHA256SUMS.txt`.
+16. Re-run final release acceptance before publishing stable `v2.0.13` binaries.
 
 ## Definition-of-done status
 
-**The TextLens 2.0.13 source-owned reproducible-release-evidence milestone is prepared in PR #40, including checked-in regression coverage for the new release tooling.**
+**The TextLens 2.0.13 source-owned reproducible-release-evidence milestone is prepared in PR #40, including checked-in regression coverage for the new release tooling, deterministic Rust toolchain behavior, CI repairs discovered by real runner execution, and current GitHub Actions checkout/setup runtimes.**
 
 **Stable TextLens 2.0.13 binary release evidence is not complete.** The new controls deliberately make missing dependency, advisory, native-platform, accessibility, signing, screenshot, and checksum work visible and enforceable.
 
-PR-level CI must be treated according to its actual final result. A queued or failing security/advisory job must never be rewritten as passing.
+PR-level CI must be treated according to its actual final result. A queued, in-progress, failing, or advisory-producing job must never be rewritten as passing.
 
 ---
 
