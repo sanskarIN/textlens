@@ -36,7 +36,8 @@ impl Default for ReportExportOptions {
     }
 }
 
-pub fn write_report(path: &Path, report: &AnalysisReport, format: &str) -> Result<(), AppError> {
+#[cfg(test)]
+fn write_report(path: &Path, report: &AnalysisReport, format: &str) -> Result<(), AppError> {
     write_report_with_options(path, report, format, ReportExportOptions::default())
 }
 
