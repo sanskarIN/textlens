@@ -192,7 +192,7 @@ impl AnalysisAccumulator {
 
     fn scan_paragraphs(&mut self, chunk: &str) {
         for line in logical_lines(chunk) {
-            let content = line.trim_end_matches(|c| c == '\r' || c == '\n');
+            let content = line.trim_end_matches(['\r', '\n']);
             if content.trim().is_empty() {
                 self.paragraph_open = false;
                 self.whitespace.blank_lines = self.whitespace.blank_lines.saturating_add(1);
