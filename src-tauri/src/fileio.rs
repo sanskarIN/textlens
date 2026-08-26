@@ -169,7 +169,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
         bytes.strip_prefix(&[0xFE, 0xFF]).unwrap_or(bytes)
     };
 
-    let mut had_errors = payload.len() % 2 != 0;
+    let mut had_errors = !payload.len().is_multiple_of(2);
     let units = payload.chunks_exact(2).map(|pair| {
         if little_endian {
             u16::from_le_bytes([pair[0], pair[1]])
@@ -188,7 +188,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
             }
         }
     }
-    if payload.len() % 2 != 0 {
+    if !payload.len().is_multiple_of(2) {
         output.push('\u{FFFD}');
     }
 
