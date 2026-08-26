@@ -276,7 +276,7 @@ fn rank(map: HashMap<String, usize>, denominator: usize, limit: usize) -> Vec<Fr
 
 fn dominant(d: &LineEndingDiagnostics) -> String {
     let mut vals = [("LF", d.lf), ("CRLF", d.crlf), ("CR", d.cr)];
-    vals.sort_by(|a, b| b.1.cmp(&a.1));
+    vals.sort_by_key(|value| std::cmp::Reverse(value.1));
     if vals[0].1 == 0 {
         "None".into()
     } else {
