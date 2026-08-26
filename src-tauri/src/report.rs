@@ -294,10 +294,10 @@ mod tests {
 
     #[test]
     fn markdown_omits_source_text() {
-        let report = analyze_text("secret source text", AnalysisOptions::default());
+        let report = analyze_text("secret source text payload", AnalysisOptions::default());
         let markdown = render_markdown(&report);
         assert!(markdown.contains("TextLens Analysis Report"));
-        assert!(!markdown.contains("secret source text"));
+        assert!(!markdown.contains("secret source text payload"));
     }
 
     #[test]
