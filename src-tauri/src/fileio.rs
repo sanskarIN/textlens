@@ -162,6 +162,10 @@ fn decode_utf8(bytes: &[u8]) -> (String, bool) {
     }
 }
 
+#[allow(
+    clippy::manual_is_multiple_of,
+    reason = "Keep the crate's declared Rust 1.77 MSRV; is_multiple_of stabilized later."
+)]
 fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
     let payload = if little_endian {
         bytes.strip_prefix(&[0xFF, 0xFE]).unwrap_or(bytes)
@@ -169,7 +173,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
         bytes.strip_prefix(&[0xFE, 0xFF]).unwrap_or(bytes)
     };
 
-    let mut had_errors = !payload.len().is_multiple_of(2);
+    let mut had_errors = payload.len() % 2 != 0;
     let units = payload.chunks_exact(2).map(|pair| {
         if little_endian {
             u16::from_le_bytes([pair[0], pair[1]])
@@ -188,7 +192,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> (String, bool) {
             }
         }
     }
-    if !payload.len().is_multiple_of(2) {
+    if payload.len() % 2 != 0 {
         output.push('\u{FFFD}');
     }
 
