@@ -6,6 +6,7 @@ Security fixes are applied to the current 2.0.x source/release line. Older devel
 
 | Version | Supported |
 |---|---|
+| 2.0.13 | Yes (release-candidate source line) |
 | 2.0.x | Yes |
 | 0.1.x | Best effort only |
 | Older | No |
@@ -58,7 +59,7 @@ The local operating-system user controls selected input and export paths. TextLe
 
 CI includes static and dependency checks, and Dependabot is configured for npm, Cargo, and GitHub Actions updates. The scheduled Rust audit may open public tracking issues for advisories that are already publicly disclosed in the RustSec database; those automated issues are distinct from privately reported, not-yet-public vulnerabilities.
 
-Dependency advisory triage follows these rules:
+Dependency advisory triage follows the detailed policy in [`docs/rustsec-triage.md`](docs/rustsec-triage.md):
 
 1. Confirm the affected crate/version and dependency path from a generated, reviewed Cargo lockfile.
 2. Treat vulnerability, memory-safety, or unsoundness advisories as release-review blockers until a patched dependency path is available or a documented technical assessment shows the affected code is not reachable in the shipped target.
