@@ -1,6 +1,6 @@
 [package]
 name = "textlens"
-version = "2.0.12"
+version = "2.0.13"
 description = "Privacy-first desktop text analysis."
 authors = ["Sanskar <sanskarin@outlook.in>"]
 edition = "2021"

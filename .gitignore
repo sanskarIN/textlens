@@ -40,6 +40,9 @@ tmp/
 temp/
 *.tmp
 
+# Generated release evidence
+release-evidence/
+
 # Test artifacts
 junit.xml
 lcov.info

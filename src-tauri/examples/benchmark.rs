@@ -15,9 +15,7 @@ fn main() {
     let input = &generated[..target_bytes.min(generated.len())];
     let actual_mib = input.len() as f64 / (1024.0 * 1024.0);
 
-    println!(
-        "TextLens analyzer benchmark: {actual_mib:.2} MiB, {iterations} iterations"
-    );
+    println!("TextLens analyzer benchmark: {actual_mib:.2} MiB, {iterations} iterations");
 
     let mut elapsed_total = 0.0_f64;
     let mut words = 0_usize;

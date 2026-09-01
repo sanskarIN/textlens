@@ -53,3 +53,21 @@ The roadmap favors coherent, testable improvements over feature-count inflation.
 - [x] Reaffirm the deterministic conservative encoding policy rather than adding unjustified statistical guessing.
 - [x] Keep release tag/version and checksum integrity tooling in the release path.
 - [x] Keep remaining native packaging, signing, accessibility, and screenshot work as evidence-based external release gates.
+
+## 2.0.13 reproducible release evidence milestone
+
+- [x] Add a dependency-free release-readiness preflight that requires reviewed npm and Cargo lockfiles and fingerprints them with SHA-256.
+- [x] Block tagged native packaging when committed dependency locks are missing or malformed.
+- [x] Switch tagged frontend release installation to `npm ci` and verify Cargo manifests with `cargo metadata --locked`.
+- [x] Add a read-only Dependency Lock Candidate workflow that generates real npm/Cargo lockfile candidates on a registry-capable GitHub runner without auto-committing supply-chain changes.
+- [x] Add machine-readable build evidence containing only allowlisted runner/toolchain/repository metadata and dependency-lock fingerprints.
+- [x] Add a manually dispatched Ubuntu/Windows/macOS Release Candidate Audit workflow that runs quality gates, native bundling, benchmark evidence, and artifact upload.
+- [x] Cancel superseded CI, Security, and Dependency Review runs for the same pull request/ref so stale revisions do not consume runners.
+- [x] Correct the supported security line to 2.0.x and document dependency-advisory triage rules.
+- [x] Document what automated release evidence proves and which acceptance claims still require manual verification.
+- [ ] Generate and review `package-lock.json` and `src-tauri/Cargo.lock` from package-manager output in a registry-capable environment.
+- [ ] Run the Release Candidate Audit successfully from the reviewed dependency graph on Ubuntu, Windows, and macOS.
+- [ ] Review the currently open RustSec dependency advisories against the locked dependency graph and upstream fixes before public binary release.
+- [ ] Install and manually exercise each candidate package, including native accessibility/scaling/reduced-motion acceptance.
+- [ ] Capture real screenshots from verified packages and complete signing/notarization where applicable.
+- [ ] Generate and verify `SHA256SUMS.txt` from the final public artifact set.

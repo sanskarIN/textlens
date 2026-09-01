@@ -153,10 +153,8 @@ impl AnalysisAccumulator {
             }
 
             self.stats.words = self.stats.words.saturating_add(1);
-            self.stats.max_word_characters = self
-                .stats
-                .max_word_characters
-                .max(word.chars().count());
+            self.stats.max_word_characters =
+                self.stats.max_word_characters.max(word.chars().count());
             *self.word_counts.entry(word.clone()).or_insert(0) += 1;
 
             if let Some(prev) = &self.previous_word {
@@ -194,7 +192,7 @@ impl AnalysisAccumulator {
 
     fn scan_paragraphs(&mut self, chunk: &str) {
         for line in logical_lines(chunk) {
-            let content = line.trim_end_matches(|c| c == '\r' || c == '\n');
+            let content = line.trim_end_matches(['\r', '\n']);
             if content.trim().is_empty() {
                 self.paragraph_open = false;
                 self.whitespace.blank_lines = self.whitespace.blank_lines.saturating_add(1);
@@ -203,10 +201,8 @@ impl AnalysisAccumulator {
                 self.paragraph_open = true;
             }
             if content.len() != content.trim_end_matches(char::is_whitespace).len() {
-                self.whitespace.trailing_whitespace_lines = self
-                    .whitespace
-                    .trailing_whitespace_lines
-                    .saturating_add(1);
+                self.whitespace.trailing_whitespace_lines =
+                    self.whitespace.trailing_whitespace_lines.saturating_add(1);
             }
         }
     }
@@ -264,11 +260,7 @@ fn estimate_seconds(words: usize, wpm: u32) -> u64 {
     }
 }
 
-fn rank(
-    map: HashMap<String, usize>,
-    denominator: usize,
-    limit: usize,
-) -> Vec<FrequencyItem> {
+fn rank(map: HashMap<String, usize>, denominator: usize, limit: usize) -> Vec<FrequencyItem> {
     let mut items: Vec<_> = map.into_iter().collect();
     items.sort_by(|(at, ac), (bt, bc)| bc.cmp(ac).then_with(|| at.cmp(bt)));
     items
@@ -284,7 +276,7 @@ fn rank(
 
 fn dominant(d: &LineEndingDiagnostics) -> String {
     let mut vals = [("LF", d.lf), ("CRLF", d.crlf), ("CR", d.cr)];
-    vals.sort_by(|a, b| b.1.cmp(&a.1));
+    vals.sort_by_key(|value| std::cmp::Reverse(value.1));
     if vals[0].1 == 0 {
         "None".into()
     } else {
@@ -356,17 +348,17 @@ mod tests {
 
         assert_eq!(r.stats.words, 4);
         assert_eq!(r.stats.unique_words, 3);
-        assert!(r.keywords.iter().all(|item| item.text != "the" && item.text != "rust"));
+        assert!(r
+            .keywords
+            .iter()
+            .all(|item| item.text != "the" && item.text != "rust"));
         assert!(r.keywords.iter().any(|item| item.text == "book"));
         assert!(r.bigrams.iter().any(|item| item.text == "the rust"));
     }
 
     #[test]
     fn unicode_words_and_graphemes() {
-        let r = analyze_text(
-            "नमस्ते दुनिया café 👨‍👩‍👧‍👦",
-            AnalysisOptions::default(),
-        );
+        let r = analyze_text("नमस्ते दुनिया café 👨‍👩‍👧‍👦", AnalysisOptions::default());
         assert!(r.stats.words >= 3);
         assert!(r.stats.graphemes <= r.stats.characters);
     }
