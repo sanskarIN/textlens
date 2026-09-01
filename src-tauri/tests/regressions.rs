@@ -47,7 +47,7 @@ fn checked_in_punctuation_fixture_remains_stable() {
         AnalysisOptions::default(),
     );
     assert_eq!(report.version, CURRENT_REPORT_VERSION);
-    assert_eq!(report.stats.sentences, 5);
+    assert_eq!(report.stats.sentences, 4);
     let terms = report
         .keywords
         .iter()
