@@ -2,12 +2,11 @@ name: Dependency Lock Candidate
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - release/v2.0.13-reproducible-evidence
 
+# Lockfiles are supply-chain inputs. This workflow generates temporary review
+# evidence only; it must never commit or push dependency changes automatically.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   generate:
@@ -36,21 +35,6 @@ jobs:
       - name: Verify Cargo lockfile matches manifests
         working-directory: src-tauri
         run: cargo metadata --locked --format-version 1 --no-deps
-
-      - name: Materialize missing lockfiles on the release branch
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          if git ls-files --error-unmatch package-lock.json src-tauri/Cargo.lock >/dev/null 2>&1; then
-            echo "Release lockfiles are already tracked; no materialization commit is needed."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json src-tauri/Cargo.lock
-          git commit -m "chore(deps): materialize release lockfiles"
-          git push
 
       - name: Upload lockfile candidate for human review
         uses: actions/upload-artifact@v4
